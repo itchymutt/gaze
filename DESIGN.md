@@ -4,9 +4,25 @@
 
 Lux is a general-purpose programming language designed for a world where most code is written by machines and read by humans. Its core belief: **every observable behavior of a program should be visible in its type signature.**
 
-Memory safety is table stakes (solved by Rust, adopted here). The novel contribution is *effect safety*: the compiler tracks what a function does to the world, not just what it returns. A function that touches the network says so. A function that writes to disk says so. A function that mutates shared state says so. Silence means purity.
+Memory safety is table stakes. The novel contribution is *effect safety*: the compiler tracks what a function does to the world, not just what it returns. A function that touches the network says so. A function that writes to disk says so. A function that mutates shared state says so. Silence means purity.
 
 This matters because AI agents generate plausible code at scale. In languages where side effects are invisible, a "pure" function that secretly makes HTTP calls passes code review (human and automated). In Lux, it doesn't compile.
+
+## Lineage
+
+Lux draws from seven languages, taking specific ideas from each:
+
+| Language | What Lux takes | What Lux avoids |
+|----------|---------------|-----------------|
+| **Rust** | Result types, pattern matching, no null, LLVM backend | Borrow checker complexity, lifetime annotations |
+| **Go** | Structural simplicity, one way to do things, gofmt | No sum types, no generics (pre-1.18), error handling verbosity |
+| **Koka** | Row-polymorphic effect types, Perceus reference counting | Deep handler performance overhead |
+| **Austral** | Capability-based I/O, linear types for resources, simplicity as constraint | Extreme verbosity of threading linear values |
+| **Hylo** | Mutable value semantics, subscripts/projections, parameter conventions | Unproven ergonomics for graph-shaped data |
+| **Julia** | Multiple dispatch expressiveness, type specialization | Dynamic typing, no effect tracking, GC |
+| **HCL** | The belief that a language should have an opinion about program structure | Domain-specificity (Lux is general-purpose) |
+
+See RESEARCH.md for the full competitive analysis.
 
 ## Design Principles
 
@@ -247,13 +263,84 @@ fn generate_id() -> UserId {
 
 ## Memory Model
 
-Lux uses ownership and borrowing (the Rust model) for memory safety. This is not the novel contribution and is deliberately not reinvented. The key differences from Rust:
+Lux uses **mutable value semantics** (from Hylo) with **Perceus reference counting** (from Koka). No garbage collector. No borrow checker. No lifetime annotations.
 
-1. **No `unsafe` keyword.** The equivalent is the `Unsafe` effect, which is tracked like any other effect. `Unsafe` code is visible in signatures, auditable, and restrictable via capabilities.
+### Value Semantics
 
-2. **No raw pointers in safe code.** Pointer arithmetic requires `Cap<Unsafe>`, which is not available in normal programs. FFI boundaries are the only place this appears.
+All types in Lux behave like values. Assignment copies. There is no aliasing. There is no shared mutable state. If you have a value, you are the only one who has it.
 
-3. **Simpler lifetime annotations.** Lux uses region-based memory management with fewer explicit lifetime parameters than Rust. The compiler infers more aggressively. This trades some expressiveness for readability (the AI-native tradeoff: simpler code that's easier to generate correctly).
+```lux
+let a = Point { x: 1, y: 2 }
+let b = a          // b is an independent copy
+// a and b are completely independent values
+```
+
+### Parameter Passing
+
+Functions declare how they use their parameters:
+
+```lux
+fn read_point(let p: Point) -> i32 {       // read-only access
+    p.x + p.y
+}
+
+fn move_point(inout p: Point, dx: i32) {    // mutable access (exclusive)
+    p.x = p.x + dx
+}
+
+fn consume_point(sink p: Point) -> i32 {    // takes ownership, p is consumed
+    p.x + p.y
+    // p is gone after this function
+}
+```
+
+- `let`: read-only. The callee cannot modify the value.
+- `inout`: mutable, exclusive access. The callee can modify the value in place. The caller cannot use it during the call.
+- `sink`: ownership transfer. The callee consumes the value. The caller cannot use it after the call.
+
+These conventions are visible at every call site, which is exactly what a human reviewer or AI auditor needs.
+
+### Subscripts (Projections, Not References)
+
+When you need to work with part of a larger structure in place, Lux uses subscripts. A subscript yields a temporary projection of a value, not a reference to it.
+
+```lux
+fn swap_coordinates(inout p: Point) {
+    let temp = p.x
+    p.x = p.y
+    p.y = temp
+}
+
+// Subscripts for collection access
+subscript items[index: usize](inout self: List<T>) -> T {
+    // yields a projection of the element at index
+    // the projection is lexically scoped, no lifetime needed
+}
+```
+
+Projections cannot be stored, returned, or outlive their scope. This eliminates dangling references by construction. No lifetime annotations needed because the scope is always lexical.
+
+### Perceus Reference Counting
+
+Under the hood, Lux uses Perceus (from Koka): precise, compiler-inserted reference counting with reuse optimization.
+
+- When a value has a single reference, operations on it are in-place (no copy).
+- When a value is shared (e.g., passed to two functions), the compiler inserts a copy.
+- The reuse optimization detects when a data structure is consumed and immediately reconstructed, and reuses the memory.
+
+The programmer never sees reference counts. The compiler manages them. There are no GC pauses, no manual memory management, and no borrow checker fights.
+
+### Unsafe Code
+
+There is no `unsafe` keyword. The equivalent is the `Unsafe` effect:
+
+```lux
+fn call_c_library(cap: Cap<Unsafe>, ptr: RawPtr) -> i32 ! {Unsafe} {
+    ffi.call(cap, "some_c_function", ptr) ! {Unsafe}
+}
+```
+
+Raw pointer operations require `Cap<Unsafe>`, which is not available in normal programs. FFI boundaries are the only place this appears. The effect is tracked, auditable, and restrictable.
 
 ## Compilation and Tooling
 
@@ -299,14 +386,7 @@ An AI agent's output can be audited before execution. A CI pipeline can reject P
 
 ## Influences
 
-- **Rust**: Ownership, borrowing, Result types, pattern matching, no null
-- **Go**: Structural simplicity, one way to do things, fast compilation, gofmt
-- **HCL**: The belief that a language should have an opinion about program structure
-- **Haskell**: Effect tracking (IO monad), purity as default
-- **Unix**: Pipelines as composition, text as interface, small composable tools
-- **Koka**: Academic effect system research (algebraic effects, effect polymorphism)
-- **Zig**: Explicit allocation, no hidden control flow, comptime
-- **Austral**: Linear types with a capability-based security model
+See the Lineage table at the top of this document and RESEARCH.md for the full analysis.
 
 ## Non-Goals
 
