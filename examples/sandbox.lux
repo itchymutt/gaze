@@ -1,0 +1,42 @@
+// Demonstrating capability restriction for AI agent sandboxing.
+// An AI agent runs inside a sandbox with limited capabilities.
+// The type system prevents it from exceeding its permissions.
+
+struct AgentConfig {
+    allowed_domains: List<String>,
+    output_dir: Path,
+    max_file_size: u64,
+}
+
+// The orchestrator creates a restricted capability set.
+// The agent receives only what it needs.
+fn run_agent(cap: Capabilities, config: AgentConfig) -> Result<AgentOutput, AgentError> ! {Net, Fs} {
+    // Create restricted capabilities
+    let restricted_net = cap.net.restrict(config.allowed_domains) ! {Net}
+    let restricted_fs = cap.fs.restrict_to(config.output_dir) ! {Fs}
+
+    // The agent function receives only restricted capabilities.
+    // It literally cannot access domains outside the allowlist.
+    // It literally cannot write files outside the output directory.
+    // This is enforced by the type system, not a runtime sandbox.
+    agent_task(restricted_net, restricted_fs) ! {Net, Fs}
+}
+
+fn agent_task(net: Cap<Net>, fs: Cap<Fs>) -> Result<AgentOutput, AgentError> ! {Net, Fs} {
+    // This function doesn't know it's restricted.
+    // It uses Cap<Net> and Cap<Fs> normally.
+    // The restriction is invisible to the callee, enforced by the caller.
+    let data = http.get(net, "https://api.example.com/data") ! {Net} ?
+    let processed = transform(data.body)  // pure
+    fs.write("output.json", processed) ! {Fs} ?
+    Ok(AgentOutput { path: "output.json", size: processed.len() })
+}
+
+// Pure transformation. No capabilities, no effects.
+// This is where the AI agent does most of its work.
+fn transform(raw: Bytes) -> Bytes {
+    let data = json.decode::<List<Record>>(raw)
+    let filtered = data |> filter(|r| r.score > 0.8)
+    let sorted = filtered |> sort_by(|r| r.timestamp)
+    json.encode(&sorted)
+}

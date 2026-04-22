@@ -1,0 +1,66 @@
+// Pure business logic. No effects. No capabilities needed.
+// This is the code AI agents should be generating most of the time.
+// It's testable without mocks, reproducible, and safe by construction.
+
+struct Order {
+    items: List<LineItem>,
+    discount: Option<Discount>,
+    tax_rate: Decimal,
+}
+
+struct LineItem {
+    name: String,
+    quantity: u32,
+    unit_price: Decimal,
+}
+
+enum Discount {
+    Percentage(Decimal),
+    Fixed(Decimal),
+    BuyNGetFree(u32, u32),  // buy N, get M free
+}
+
+struct OrderSummary {
+    subtotal: Decimal,
+    discount_amount: Decimal,
+    tax: Decimal,
+    total: Decimal,
+}
+
+// No ! annotation. No capabilities. Pure computation.
+// The compiler guarantees this function has no side effects.
+// An AI agent cannot accidentally introduce network calls or file I/O here.
+
+pub fn summarize(order: Order) -> OrderSummary {
+    let subtotal = order.items
+        |> map(line_total)
+        |> sum
+
+    let discount_amount = match order.discount {
+        Some(Discount::Percentage(pct)) => subtotal * pct,
+        Some(Discount::Fixed(amount)) => min(amount, subtotal),
+        Some(Discount::BuyNGetFree(n, m)) => buy_n_get_free_discount(order.items, n, m),
+        None => Decimal::zero(),
+    }
+
+    let taxable = subtotal - discount_amount
+    let tax = taxable * order.tax_rate
+    let total = taxable + tax
+
+    OrderSummary { subtotal, discount_amount, tax, total }
+}
+
+fn line_total(item: LineItem) -> Decimal {
+    item.unit_price * Decimal::from(item.quantity)
+}
+
+fn buy_n_get_free_discount(items: List<LineItem>, n: u32, m: u32) -> Decimal {
+    let total_qty = items |> map(|i| i.quantity) |> sum
+    let free_count = (total_qty / (n + m)) * m
+    let cheapest = items
+        |> sort_by(|i| i.unit_price)
+        |> take(free_count as usize)
+        |> map(|i| i.unit_price)
+        |> sum
+    cheapest
+}

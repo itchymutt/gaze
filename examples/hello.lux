@@ -1,0 +1,7 @@
+// The simplest Lux program.
+// main receives capabilities from the runtime.
+// Even "hello world" declares its effects: it writes to stdout.
+
+fn main(cap: Capabilities) -> Result<(), Error> ! {Fs} {
+    cap.fs.stdout.write("Hello, world.\n") ! {Fs}
+}

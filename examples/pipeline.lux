@@ -1,0 +1,68 @@
+// A web request handler demonstrating pipelines and effect tracking.
+// Every stage declares what it does to the world.
+
+struct Request {
+    headers: Map<String, String>,
+    body: Bytes,
+    path: String,
+}
+
+struct Response {
+    status: u16,
+    body: Bytes,
+}
+
+struct User {
+    id: UserId,
+    name: String,
+    role: Role,
+}
+
+enum Role {
+    Admin,
+    Member,
+    Guest,
+}
+
+// The pipeline reads top to bottom.
+// The effect set is the union of all stages.
+// A human reviewer sees the full security surface in the signature.
+fn handle(cap: Capabilities, req: Request) -> Result<Response, AppError> ! {Net, Db} {
+    req
+        |> authenticate(cap.net) ! {Net} ?
+        |> parse_body ?
+        |> authorize ?
+        |> persist(cap.db) ! {Db} ?
+        |> to_response
+}
+
+// Each stage is an independent, testable function.
+
+fn authenticate(net: Cap<Net>, req: Request) -> Result<AuthenticatedRequest, AuthError> ! {Net} {
+    let token = req.headers.get("Authorization")?
+    let claims = verify_token(net, token) ! {Net} ?
+    Ok(AuthenticatedRequest { req, claims })
+}
+
+fn parse_body(req: AuthenticatedRequest) -> Result<ParsedRequest, ParseError> {
+    let user = json.decode::<User>(req.body)?
+    Ok(ParsedRequest { user, claims: req.claims })
+}
+
+fn authorize(req: ParsedRequest) -> Result<AuthorizedRequest, AuthError> {
+    match req.claims.role {
+        Role::Admin => Ok(AuthorizedRequest { user: req.user }),
+        Role::Member => Ok(AuthorizedRequest { user: req.user }),
+        Role::Guest => Err(AuthError::Forbidden),
+    }
+}
+
+fn persist(db: Cap<Db>, req: AuthorizedRequest) -> Result<User, DbError> ! {Db} {
+    db.insert("users", &req.user) ! {Db} ?
+    Ok(req.user)
+}
+
+fn to_response(user: User) -> Result<Response, AppError> {
+    let body = json.encode(&user)?
+    Ok(Response { status: 201, body })
+}
