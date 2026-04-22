@@ -1,0 +1,41 @@
+// Concurrent work with effect tracking.
+// Spawning tasks is an effect. The compiler knows.
+
+struct Page {
+    url: String,
+    title: String,
+    size: u64,
+}
+
+// Fetch multiple pages concurrently.
+// `can Async` means this function spawns concurrent work.
+pub fn fetch_all(urls: List<String>) -> List<Page> can Net, Async, Fail {
+    urls
+        |> map(|url| spawn fetch_page(url))
+        |> await_all?
+}
+
+fn fetch_page(url: String) -> Page can Net, Fail {
+    let response = net.get(url)?
+    let title = response.body
+        |> parse_html
+        |> find("title")
+        |> text
+        ?? "(untitled)"
+
+    Page { url, title, size: response.body.len() }
+}
+
+// Pure HTML parsing. No network, no effects.
+fn parse_html(raw: Bytes) -> HtmlNode {
+    // ...parser implementation...
+}
+
+// Report generation. Pure computation on the results.
+fn report(pages: List<Page>) -> String {
+    let total = pages |> map(.size) |> sum
+    let largest = pages |> max_by(.size)
+
+    "Fetched {pages.len()} pages ({total} bytes)\n"
+    ++ "Largest: {largest.title} ({largest.size} bytes)"
+}

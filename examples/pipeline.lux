@@ -1,5 +1,6 @@
-// A web request handler demonstrating pipelines and effect tracking.
-// Every stage declares what it does to the world.
+// A web request handler.
+// Effects are declared in signatures, inferred at call sites.
+// The pipeline reads like prose. The types tell the safety story.
 
 struct Request {
     headers: Map<String, String>,
@@ -18,51 +19,44 @@ struct User {
     role: Role,
 }
 
-enum Role {
-    Admin,
-    Member,
-    Guest,
-}
+enum Role { Admin, Member, Guest }
 
-// The pipeline reads top to bottom.
-// The effect set is the union of all stages.
-// A human reviewer sees the full security surface in the signature.
-fn handle(cap: Capabilities, req: Request) -> Result<Response, AppError> ! {Net, Db} {
+// Effects declared once, in the signature. Not repeated at every call.
+// The compiler infers which calls contribute which effects.
+pub fn handle(req: Request) -> Response can Net, Db, Fail {
     req
-        |> authenticate(cap.net) ! {Net} ?
-        |> parse_body ?
-        |> authorize ?
-        |> persist(cap.db) ! {Db} ?
-        |> to_response
+        |> authenticate
+        |> parse_body
+        |> authorize
+        |> persist
+        |> respond
 }
 
-// Each stage is an independent, testable function.
-
-fn authenticate(net: Cap<Net>, req: Request) -> Result<AuthenticatedRequest, AuthError> ! {Net} {
+// A function that touches the network says so.
+fn authenticate(req: Request) -> AuthRequest can Net, Fail {
     let token = req.headers.get("Authorization")?
-    let claims = verify_token(net, token) ! {Net} ?
-    Ok(AuthenticatedRequest { req, claims })
+    let claims = verify_token(token)?
+    AuthRequest { req, claims }
 }
 
-fn parse_body(req: AuthenticatedRequest) -> Result<ParsedRequest, ParseError> {
-    let user = json.decode::<User>(req.body)?
-    Ok(ParsedRequest { user, claims: req.claims })
+// A pure function says nothing. Silence is purity.
+fn parse_body(req: AuthRequest) -> ParsedRequest can Fail {
+    let user = json.decode(req.body)?
+    ParsedRequest { user, claims: req.claims }
 }
 
-fn authorize(req: ParsedRequest) -> Result<AuthorizedRequest, AuthError> {
+// Pattern matching. No ceremony.
+fn authorize(req: ParsedRequest) -> AuthorizedRequest can Fail {
     match req.claims.role {
-        Role::Admin => Ok(AuthorizedRequest { user: req.user }),
-        Role::Member => Ok(AuthorizedRequest { user: req.user }),
-        Role::Guest => Err(AuthError::Forbidden),
+        Admin | Member => AuthorizedRequest { user: req.user },
+        Guest => fail AuthError.Forbidden,
     }
 }
 
-fn persist(db: Cap<Db>, req: AuthorizedRequest) -> Result<User, DbError> ! {Db} {
-    db.insert("users", &req.user) ! {Db} ?
-    Ok(req.user)
+fn persist(req: AuthorizedRequest) -> User can Db, Fail {
+    db.insert("users", req.user)
 }
 
-fn to_response(user: User) -> Result<Response, AppError> {
-    let body = json.encode(&user)?
-    Ok(Response { status: 201, body })
+fn respond(user: User) -> Response {
+    Response { status: 201, body: json.encode(user) }
 }

@@ -1,6 +1,5 @@
-// Pure business logic. No effects. No capabilities needed.
-// This is the code AI agents should be generating most of the time.
-// It's testable without mocks, reproducible, and safe by construction.
+// Pure business logic. No effects. No world access.
+// Testable without mocks. Reproducible. Safe by construction.
 
 struct Order {
     items: List<LineItem>,
@@ -17,50 +16,43 @@ struct LineItem {
 enum Discount {
     Percentage(Decimal),
     Fixed(Decimal),
-    BuyNGetFree(u32, u32),  // buy N, get M free
+    BuyNGetFree(u32, u32),
 }
 
-struct OrderSummary {
+struct Summary {
     subtotal: Decimal,
-    discount_amount: Decimal,
+    discount: Decimal,
     tax: Decimal,
     total: Decimal,
 }
 
-// No ! annotation. No capabilities. Pure computation.
-// The compiler guarantees this function has no side effects.
-// An AI agent cannot accidentally introduce network calls or file I/O here.
+pub fn summarize(order: Order) -> Summary {
+    let subtotal = order.items |> map(.unit_price * .quantity) |> sum
 
-pub fn summarize(order: Order) -> OrderSummary {
-    let subtotal = order.items
-        |> map(line_total)
-        |> sum
-
-    let discount_amount = match order.discount {
-        Some(Discount::Percentage(pct)) => subtotal * pct,
-        Some(Discount::Fixed(amount)) => min(amount, subtotal),
-        Some(Discount::BuyNGetFree(n, m)) => buy_n_get_free_discount(order.items, n, m),
-        None => Decimal::zero(),
+    let discount = match order.discount {
+        Some(Percentage(pct)) => subtotal * pct,
+        Some(Fixed(amount))   => min(amount, subtotal),
+        Some(BuyNGetFree(n, m)) => cheapest_free(order.items, n, m),
+        None => 0,
     }
 
-    let taxable = subtotal - discount_amount
+    let taxable = subtotal - discount
     let tax = taxable * order.tax_rate
-    let total = taxable + tax
 
-    OrderSummary { subtotal, discount_amount, tax, total }
+    Summary {
+        subtotal,
+        discount,
+        tax,
+        total: taxable + tax,
+    }
 }
 
-fn line_total(item: LineItem) -> Decimal {
-    item.unit_price * Decimal::from(item.quantity)
-}
+fn cheapest_free(items: List<LineItem>, n: u32, m: u32) -> Decimal {
+    let free_count = (items |> map(.quantity) |> sum) / (n + m) * m
 
-fn buy_n_get_free_discount(items: List<LineItem>, n: u32, m: u32) -> Decimal {
-    let total_qty = items |> map(|i| i.quantity) |> sum
-    let free_count = (total_qty / (n + m)) * m
-    let cheapest = items
-        |> sort_by(|i| i.unit_price)
-        |> take(free_count as usize)
-        |> map(|i| i.unit_price)
+    items
+        |> sort_by(.unit_price)
+        |> take(free_count)
+        |> map(.unit_price)
         |> sum
-    cheapest
 }

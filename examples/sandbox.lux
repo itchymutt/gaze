@@ -1,42 +1,36 @@
-// Demonstrating capability restriction for AI agent sandboxing.
-// An AI agent runs inside a sandbox with limited capabilities.
-// The type system prevents it from exceeding its permissions.
+// AI agent sandboxing.
+// Capabilities flow through function parameters.
+// The type system enforces the sandbox. No runtime checks needed.
 
 struct AgentConfig {
     allowed_domains: List<String>,
     output_dir: Path,
-    max_file_size: u64,
 }
 
-// The orchestrator creates a restricted capability set.
-// The agent receives only what it needs.
-fn run_agent(cap: Capabilities, config: AgentConfig) -> Result<AgentOutput, AgentError> ! {Net, Fs} {
-    // Create restricted capabilities
-    let restricted_net = cap.net.restrict(config.allowed_domains) ! {Net}
-    let restricted_fs = cap.fs.restrict_to(config.output_dir) ! {Fs}
+// The orchestrator narrows the world the agent can see.
+pub fn run_agent(config: AgentConfig) -> AgentOutput can Net, Fs, Fail {
+    let net = Net.restrict(config.allowed_domains)
+    let fs = Fs.restrict_to(config.output_dir)
 
-    // The agent function receives only restricted capabilities.
-    // It literally cannot access domains outside the allowlist.
-    // It literally cannot write files outside the output directory.
-    // This is enforced by the type system, not a runtime sandbox.
-    agent_task(restricted_net, restricted_fs) ! {Net, Fs}
+    // The agent receives a smaller world.
+    agent_task(net, fs)
 }
 
-fn agent_task(net: Cap<Net>, fs: Cap<Fs>) -> Result<AgentOutput, AgentError> ! {Net, Fs} {
-    // This function doesn't know it's restricted.
-    // It uses Cap<Net> and Cap<Fs> normally.
-    // The restriction is invisible to the callee, enforced by the caller.
-    let data = http.get(net, "https://api.example.com/data") ! {Net} ?
-    let processed = transform(data.body)  // pure
-    fs.write("output.json", processed) ! {Fs} ?
-    Ok(AgentOutput { path: "output.json", size: processed.len() })
+// This function doesn't know it's restricted.
+// It sees Net and Fs. It doesn't know they're narrowed.
+fn agent_task(net: Net, fs: Fs) -> AgentOutput can Fail {
+    let data = net.get("https://api.example.com/data")?
+    let result = transform(data.body)
+    fs.write("output.json", result)?
+    AgentOutput { path: "output.json", size: result.len() }
 }
 
-// Pure transformation. No capabilities, no effects.
-// This is where the AI agent does most of its work.
+// Pure. No effects. No parameters that grant world access.
+// This is where the agent does most of its thinking.
 fn transform(raw: Bytes) -> Bytes {
-    let data = json.decode::<List<Record>>(raw)
-    let filtered = data |> filter(|r| r.score > 0.8)
-    let sorted = filtered |> sort_by(|r| r.timestamp)
-    json.encode(&sorted)
+    raw
+        |> json.decode
+        |> filter(|r| r.score > 0.8)
+        |> sort_by(|r| r.timestamp)
+        |> json.encode
 }

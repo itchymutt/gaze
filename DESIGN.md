@@ -49,122 +49,140 @@ fn add(a: i32, b: i32) -> i32 {
 }
 
 // Function with declared effects.
-fn fetch_user(id: UserId) -> User ! {Net, Db} {
-    let response = http.get("/users/{id}") ! {Net}
-    parse_user(response.body)  // pure, no annotation needed
+fn fetch_user(id: UserId) -> User can Net, Db {
+    let response = net.get("/users/{id}")?
+    parse_user(response.body)
 }
-
-// The ! {Effects} syntax reads as "may perform these effects"
 ```
 
-### The `!` Operator
+The keyword `can` reads as English: "this function *can* touch the network and database." Silence means purity. A function with no `can` clause takes values, returns values, touches nothing.
 
-The `!` symbol is the effect declaration operator. It reads as "bang" colloquially, or "effects" formally. It appears in two positions:
+### Effect Inference
 
-1. **In signatures**: declares what effects a function may perform
-2. **At call sites**: propagates effects upward (like `?` for errors in Rust, but for effects)
+Effects are declared in signatures but **inferred at call sites**. You don't annotate every line. The compiler traces which calls contribute which effects and verifies that the signature covers them all.
 
 ```lux
-fn save_user(user: User) -> Result<UserId, DbError> ! {Db} {
-    db.insert("users", user) ! {Db}
+fn save_user(user: User) -> UserId can Db, Fail {
+    db.insert("users", user)?   // compiler infers this needs Db
 }
 
-// Calling a {Db} function from a pure context is a compile error:
+// Calling a Db function from a pure context is a compile error:
 fn process(user: User) -> UserId {
-    save_user(user)  // ERROR: effect {Db} not declared in signature
+    save_user(user)  // ERROR: `save_user` requires Db, but `process` is pure
 }
 ```
 
-### Built-in Effect Categories
+### Built-in Effects
 
-Lux ships with a small, fixed set of effect categories. These are not extensible by user code (this is a deliberate constraint, not a limitation).
+Lux ships with a fixed set of effects. Not extensible by user code. This is a deliberate constraint: the effect set is a security manifest. A fixed vocabulary means every Lux program's effects are comparable, auditable, and toolable.
 
 | Effect | What it covers |
 |--------|---------------|
-| `Net` | Any network I/O: HTTP, TCP, UDP, DNS, sockets |
+| `Net` | Network I/O: HTTP, TCP, UDP, DNS, sockets |
 | `Fs` | Filesystem reads and writes |
 | `Db` | Database queries and mutations |
-| `Env` | Reading environment variables, system properties |
-| `Time` | Reading the clock, sleeping, timeouts |
+| `Console` | Terminal I/O: stdin, stdout, stderr |
+| `Env` | Environment variables, system properties |
+| `Time` | Clock reads, sleep, timeouts |
 | `Rand` | Random number generation |
-| `Proc` | Spawning processes, threads, async tasks |
-| `Mut` | Mutating shared state (interior mutability) |
-| `Unsafe` | Raw pointer operations, FFI calls |
+| `Async` | Spawning concurrent tasks |
+| `Unsafe` | Raw pointer operations, FFI |
+| `Fail` | Operations that can fail (replaces Result/Option ceremony) |
 
-**Why fixed, not extensible?** Because the effect set is a security manifest. If users can define arbitrary effects, the manifest becomes meaningless (every library defines its own, nobody agrees on granularity). A fixed set means every Lux program's effects are comparable, auditable, and toolable. An AI agent can be told "generate code with no Net or Fs effects" and the compiler enforces it.
-
-### Effect Polymorphism
-
-Functions can be generic over effects. This is essential for higher-order functions:
+`Fail` deserves explanation. Instead of wrapping every return type in `Result<T, E>`, a function that can fail says `can Fail`. The `?` operator propagates failures. The caller decides how to handle them. This is the Koka insight: exceptions are just an effect.
 
 ```lux
-// map is pure if the function passed to it is pure.
-// map has whatever effects f has.
-fn map<T, U, E>(list: List<T>, f: fn(T) -> U ! E) -> List<U> ! E {
-    // ...
+// Instead of -> Result<User, AppError>
+fn find_user(id: UserId) -> User can Db, Fail {
+    db.query("select * from users where id = ?", id)?
 }
 
-// Using map with a pure function: result is pure
-let doubled = map(numbers, |n| n * 2)
-
-// Using map with an effectful function: result carries the effect
-let fetched = map(ids, |id| fetch_user(id) ! {Net, Db}) ! {Net, Db}
-```
-
-### Effect Boundaries
-
-A `boundary` block creates an effect boundary: code inside can perform effects, but the boundary itself is pure from the outside. This is how you build pure interfaces over effectful implementations (caching, memoization, lazy initialization).
-
-```lux
-// The function is pure from the caller's perspective.
-// The Mut effect is contained within the boundary.
-fn fibonacci(n: u64) -> u64 {
-    boundary {Mut} {
-        let cache = MutMap::new()
-        fn fib_inner(n: u64) -> u64 ! {Mut} {
-            match cache.get(n) {
-                Some(v) => v,
-                None => {
-                    let result = if n <= 1 { n } else { fib_inner(n-1) + fib_inner(n-2) }
-                    cache.set(n, result) ! {Mut}
-                    result
-                }
-            }
-        }
-        fib_inner(n) ! {Mut}
+// The caller can handle the failure
+fn maybe_find(id: UserId) -> Option<User> can Db {
+    catch find_user(id) {
+        Ok(user) => Some(user),
+        Err(_)   => None,
     }
 }
 ```
 
-Boundaries are auditable. The compiler verifies that the contained effects don't leak. A `boundary {Mut}` that secretly performs `Net` is a compile error.
+### Effect Polymorphism
 
-### Effect Capabilities (The Permission Model)
-
-This is where Lux diverges from academic effect systems and becomes practical for AI-native development.
-
-Every effect requires a *capability token* to perform. Capability tokens are created at the program entry point and passed explicitly through the call chain. You cannot conjure a capability from nothing.
+Higher-order functions are generic over effects:
 
 ```lux
-// main receives all capabilities from the runtime
-fn main(cap: Capabilities) -> Result<(), Error> ! {Net, Fs, Env} {
-    let config = load_config(cap.env) ! {Env}
-    let users = fetch_users(cap.net, config.api_url) ! {Net}
-    write_report(cap.fs, users, config.output_path) ! {Fs}
+// map is pure if f is pure. map has whatever effects f has.
+fn map<T, U>(list: List<T>, f: fn(T) -> U can E) -> List<U> can E {
+    // ...
 }
 
-// This function can only touch the network. It cannot read files,
-// even if it wanted to, because it doesn't have the Fs capability.
-fn fetch_users(net: Cap<Net>, url: Url) -> List<User> ! {Net} {
-    let response = http.get(net, url) ! {Net}
-    parse_users(response.body)
+let doubled = map(numbers, |n| n * 2)           // pure
+let fetched = map(ids, |id| fetch_user(id))      // can Net, Db
+```
+
+### Effect Boundaries
+
+A `contain` block absorbs effects. Code inside can perform effects, but the boundary is pure from the outside.
+
+```lux
+// Pure from the caller's perspective.
+// The mutation is contained.
+fn fibonacci(n: u64) -> u64 {
+    contain Mut {
+        let cache = MutMap.new()
+        fn fib(n: u64) -> u64 can Mut {
+            cache.get(n) ?? {
+                let r = if n <= 1 { n } else { fib(n - 1) + fib(n - 2) }
+                cache.set(n, r)
+                r
+            }
+        }
+        fib(n)
+    }
 }
 ```
 
-**Why capabilities matter for AI:**
-- An AI agent generating a library function never has access to capabilities directly. It must receive them from the caller.
-- A code reviewer can verify the security surface by reading the capability parameters, not the implementation.
-- A sandbox can restrict capabilities at the entry point: `main` in a sandboxed context might receive `Cap<Net>` with an allowlist of domains.
-- Capability tokens are unforgeable. There is no `Cap::new()` in user code.
+### Capabilities (The Permission Model)
+
+Effects are tracked in types. Capabilities are how effects are *granted*. The runtime creates capabilities at the entry point. Functions receive only the capabilities they need.
+
+```lux
+fn main() can Net, Fs, Console, Fail {
+    let config = load_config()?
+    let users = fetch_users(config.api_url)?
+    print(format_report(users))
+    write_report(users, config.output_path)?
+}
+```
+
+Capabilities can be narrowed. A sandbox restricts what the callee can reach:
+
+```lux
+fn run_sandboxed() can Net, Fs, Fail {
+    let net = Net.restrict(["api.example.com"])
+    let fs = Fs.restrict_to("/tmp/sandbox")
+    agent_task(net, fs)?
+}
+```
+
+The agent function receives `Net` and `Fs` that look normal but are narrowed. It cannot access domains or paths outside the restriction. This is enforced by the type system, not a runtime sandbox.
+
+### The `.` Shorthand (Field Projections in Closures)
+
+For pipelines and higher-order functions, Lux supports field projection shorthand:
+
+```lux
+// These are equivalent:
+items |> map(|i| i.unit_price)
+items |> map(.unit_price)
+
+// Works with expressions:
+items |> map(.unit_price * .quantity)
+items |> sort_by(.name)
+items |> filter(.active)
+```
+
+This is syntactic sugar. `.field` in a closure position expands to `|it| it.field`. It makes pipelines read like sentences.
 
 ## Syntax Overview
 
@@ -177,22 +195,22 @@ fn greet(name: String) -> String {
 }
 
 // Effectful function
-fn read_config(fs: Cap<Fs>, path: Path) -> Config ! {Fs} {
-    let contents = fs.read(path) ! {Fs}
-    parse_toml(contents)
+fn read_config(path: Path) -> Config can Fs, Fail {
+    let contents = fs.read(path)?
+    parse_toml(contents)?
 }
 ```
 
 ### Pipelines
 
 ```lux
-fn handle_request(cap: Capabilities, req: Request) -> Response ! {Net, Db} {
+fn handle(req: Request) -> Response can Net, Db, Fail {
     req
-        |> authenticate(cap.net) ! {Net}
+        |> authenticate
         |> parse_body
-        |> validate
-        |> persist(cap.db) ! {Db}
-        |> to_response
+        |> authorize
+        |> persist
+        |> respond
 }
 ```
 
@@ -201,9 +219,9 @@ fn handle_request(cap: Capabilities, req: Request) -> Response ! {Net, Db} {
 ```lux
 fn describe(status: Status) -> String {
     match status {
-        Status::Running(since) => "Running since {since}",
-        Status::Stopped(reason) => "Stopped: {reason}",
-        Status::Unknown => "Unknown status",
+        Running(since) => "Running since {since}",
+        Stopped(reason) => "Stopped: {reason}",
+        Unknown => "Unknown status",
     }
 }
 ```
@@ -226,18 +244,27 @@ enum Status {
 
 ### Error Handling
 
-Lux uses Result types (like Rust) but with effect-aware propagation:
+`Fail` is an effect. `?` propagates it. `catch` handles it.
 
 ```lux
-fn load_user(net: Cap<Net>, db: Cap<Db>, id: UserId) -> Result<User, AppError> ! {Net, Db} {
-    let cached = cache.get(id)?          // ? propagates errors
-    if let Some(user) = cached {
-        return Ok(user)
+fn load_user(id: UserId) -> User can Net, Db, Fail {
+    let cached = cache.get(id)?
+    if cached.is_some() {
+        return cached.unwrap()
     }
-    let user = fetch_user(net, id) ! {Net} ?  // ! propagates effects, ? propagates errors
-    db.cache(id, &user) ! {Db} ?
-    Ok(user)
+    let user = fetch_user(id)?
+    cache.set(id, user)?
+    user
 }
+```
+
+### String Interpolation
+
+```lux
+let name = "world"
+let greeting = "Hello, {name}"
+let math = "2 + 2 = {2 + 2}"
+let nested = "User {user.name} has {user.items.len()} items"
 ```
 
 ### Modules
@@ -247,17 +274,15 @@ fn load_user(net: Cap<Net>, db: Cap<Db>, id: UserId) -> Result<User, AppError> !
 // Public items are explicitly marked.
 // Everything else is private.
 
-pub fn create_user(db: Cap<Db>, name: String) -> Result<User, DbError> ! {Db} {
+pub fn create_user(name: String) -> User can Db, Fail {
     let id = generate_id()
-    let user = User { id, name, email: Email::empty() }
-    db.insert("users", &user) ! {Db} ?
-    Ok(user)
+    let user = User { id, name, email: Email.empty() }
+    db.insert("users", user)?
+    user
 }
 
-// Private helper. Not visible outside this module.
 fn generate_id() -> UserId {
-    // Pure computation, no effects needed
-    UserId::from_hash(timestamp_seed())
+    UserId.from_hash(timestamp_seed())
 }
 ```
 
@@ -335,12 +360,12 @@ The programmer never sees reference counts. The compiler manages them. There are
 There is no `unsafe` keyword. The equivalent is the `Unsafe` effect:
 
 ```lux
-fn call_c_library(cap: Cap<Unsafe>, ptr: RawPtr) -> i32 ! {Unsafe} {
-    ffi.call(cap, "some_c_function", ptr) ! {Unsafe}
+fn call_c_library(ptr: RawPtr) -> i32 can Unsafe {
+    ffi.call("some_c_function", ptr)
 }
 ```
 
-Raw pointer operations require `Cap<Unsafe>`, which is not available in normal programs. FFI boundaries are the only place this appears. The effect is tracked, auditable, and restrictable.
+Raw pointer operations require the `Unsafe` effect, which `lux audit` flags and CI policies can reject. FFI boundaries are the only place this appears.
 
 ## Compilation and Tooling
 
@@ -358,14 +383,15 @@ Raw pointer operations require `Cap<Unsafe>`, which is not available in normal p
 ```
 $ lux audit src/main.lux
 
-main                    ! {Net, Fs, Env}
-  load_config           ! {Env}
-  fetch_users           ! {Net}
-    http.get            ! {Net}
+main                    can Net, Fs, Console, Fail
+  load_config           can Fs, Fail
+  fetch_users           can Net, Fail
+    net.get             can Net, Fail
     parse_users         (pure)
-  write_report          ! {Fs}
-    format_report       (pure)
-    fs.write            ! {Fs}
+  format_report         (pure)
+  print                 can Console
+  write_report          can Fs, Fail
+    fs.write            can Fs, Fail
 ```
 
 An AI agent's output can be audited before execution. A CI pipeline can reject PRs that introduce unexpected effects. A security team can set policy: "this service may not use `Proc` or `Unsafe`."

@@ -1,7 +1,6 @@
 // The simplest Lux program.
-// main receives capabilities from the runtime.
-// Even "hello world" declares its effects: it writes to stdout.
+// `can Console` means this function writes to the terminal.
 
-fn main(cap: Capabilities) -> Result<(), Error> ! {Fs} {
-    cap.fs.stdout.write("Hello, world.\n") ! {Fs}
+fn main() can Console {
+    print("Hello, world.")
 }
