@@ -275,15 +275,12 @@ mod tests {
         let module = Parser::new(tokens).parse_module().unwrap();
         assert_eq!(module.items.len(), 1);
 
-        if let Item::Function(f) = &module.items[0] {
-            assert_eq!(f.name, "main");
-            assert_eq!(f.params.len(), 0);
-            assert!(f.return_type.is_none());
-            assert_eq!(f.effects, vec![Effect::Console]);
-            assert_eq!(f.body.len(), 1);
-        } else {
-            panic!("expected function");
-        }
+        let Item::Function(f) = &module.items[0];
+        assert_eq!(f.name, "main");
+        assert_eq!(f.params.len(), 0);
+        assert!(f.return_type.is_none());
+        assert_eq!(f.effects, vec![Effect::Console]);
+        assert_eq!(f.body.len(), 1);
     }
 
     #[test]
@@ -292,12 +289,9 @@ mod tests {
         let tokens = Lexer::new(source).tokenize().unwrap();
         let module = Parser::new(tokens).parse_module().unwrap();
 
-        if let Item::Function(f) = &module.items[0] {
-            assert_eq!(f.name, "add");
-            assert!(f.effects.is_empty());
-        } else {
-            panic!("expected function");
-        }
+        let Item::Function(f) = &module.items[0];
+        assert_eq!(f.name, "add");
+        assert!(f.effects.is_empty());
     }
 
     #[test]
@@ -306,10 +300,7 @@ mod tests {
         let tokens = Lexer::new(source).tokenize().unwrap();
         let module = Parser::new(tokens).parse_module().unwrap();
 
-        if let Item::Function(f) = &module.items[0] {
-            assert_eq!(f.effects, vec![Effect::Net, Effect::Db, Effect::Fail]);
-        } else {
-            panic!("expected function");
-        }
+        let Item::Function(f) = &module.items[0];
+        assert_eq!(f.effects, vec![Effect::Net, Effect::Db, Effect::Fail]);
     }
 }

@@ -1,7 +1,7 @@
 use crate::effects::Effect;
 use crate::token::Span;
 
-/// A Lux source file: a list of top-level items.
+/// A Gaze source file: a list of top-level items.
 #[derive(Debug)]
 pub struct Module {
     pub items: Vec<Item>,
