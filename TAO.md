@@ -88,6 +88,18 @@ Lux's effect system, the fixed vocabulary, the capability model, the audit tool,
 
 The language is the demo. The effect system is the lasting artifact. Build the language to validate the ideas. Extract the ideas to change how all code is written.
 
+### 10. The vocabulary outlives the implementation.
+
+Foundation models will get better. They will write more code, faster, with fewer mistakes. They may eventually self-audit their own effects. None of this changes the need for a shared vocabulary to describe what code does to the world.
+
+A static analyzer can produce the vocabulary. A model can self-report it. A compiler can enforce it. A human can write it by hand. The implementation changes. The vocabulary does not. Net means network. Fs means filesystem. Unsafe means unsafe. These words mean the same thing regardless of who writes the code, who checks the code, or how good the models get.
+
+The bet that survives any capability curve is not "humans need a compiler to catch their mistakes." It's "everyone needs a common language to describe what code does." Ten words. Fixed. Universal. That's the contribution.
+
+If models become reliable enough that the Lux compiler is unnecessary, the vocabulary still matters. If liblux is replaced by model self-auditing, the vocabulary still matters. If every language adds native effect tracking, the vocabulary still matters, because someone has to agree on what the categories are.
+
+Build for the vocabulary. The implementations are vehicles.
+
 ---
 
 ## What Lux Is Not

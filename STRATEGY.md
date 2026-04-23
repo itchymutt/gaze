@@ -117,3 +117,19 @@ The full Lux compiler, standard library, package manager, and ecosystem. By this
 3. **The vocabulary is wrong.** If ten effects aren't enough, or the categories are wrong, the standard fractures. Mitigation: the categories are based on real programs (the URL shortener stress test covered 7 of 10). But this is the highest-risk bet.
 
 4. **Nobody cares.** The problem is real but the market doesn't feel the pain yet. AI agents are still mostly writing code that humans review carefully. When agents write code that executes autonomously, the pain becomes acute. Timing matters.
+
+5. **Models get good enough to self-audit.** A model generates code AND a correct effect manifest without external tooling. liblux becomes redundant. Mitigation: this validates the vocabulary, not kills it. The model still needs the ten words to describe what it did. Who produces the manifest is an implementation detail. The vocabulary is the standard.
+
+## Why This Survives Model Improvements
+
+Foundation models leapfrog weekly. The question is whether Lux's thesis holds as models improve.
+
+**Better models make the vocabulary more important, not less.** A model that writes 10x more code creates 10x more surface area to audit. The vocabulary scales linearly with code volume. The need for it grows with model capability.
+
+**Three futures, one constant:**
+
+- Models remain unreliable in adversarial conditions (current reality, likely persists): you need independent verification. A type system the model can't talk its way around.
+- Models learn to self-audit: they need a vocabulary to report their effects. The ten words are the vocabulary.
+- Models become perfectly reliable: nobody believes this, but even here, the vocabulary serves as documentation for humans reading the code.
+
+The implementation layer (compiler, static analyzer, model self-report) is the part that changes. The vocabulary layer (Net, Fs, Db, Console, Env, Time, Rand, Async, Unsafe, Fail) is the part that persists. Build for the vocabulary.
