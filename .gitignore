@@ -2,6 +2,14 @@
 /target/
 /build/
 
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+*.egg
+dist/
+
 # Editor
 .vscode/
 .idea/

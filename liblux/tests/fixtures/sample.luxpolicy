@@ -1,0 +1,6 @@
+{
+    "deny": ["Unsafe", "Db"],
+    "functions": {
+        "transform": { "allow": [] }
+    }
+}
