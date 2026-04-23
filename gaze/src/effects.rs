@@ -36,6 +36,21 @@ impl fmt::Display for Effect {
 }
 
 impl Effect {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Effect::Net => "Net",
+            Effect::Fs => "Fs",
+            Effect::Db => "Db",
+            Effect::Console => "Console",
+            Effect::Env => "Env",
+            Effect::Time => "Time",
+            Effect::Rand => "Rand",
+            Effect::Async => "Async",
+            Effect::Unsafe => "Unsafe",
+            Effect::Fail => "Fail",
+        }
+    }
+
     pub fn from_str(s: &str) -> Option<Effect> {
         match s {
             "Net" => Some(Effect::Net),

@@ -15,11 +15,24 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 2 {
-        eprintln!("usage: gaze <file.gaze>");
+        eprintln!("usage: gaze <command> <file.gaze>");
+        eprintln!();
+        eprintln!("commands:");
+        eprintln!("  run <file>     Run a Gaze program");
+        eprintln!("  check <file>   Check for effect errors without running");
         process::exit(1);
     }
 
-    let path = &args[1];
+    // If the first arg looks like a file (contains . or /), treat it as `gaze run <file>`
+    let (command, path) = if args.len() == 2 && (args[1].contains('.') || args[1].contains('/')) {
+        ("run", args[1].as_str())
+    } else if args.len() >= 3 {
+        (args[1].as_str(), args[2].as_str())
+    } else {
+        eprintln!("usage: gaze <command> <file.gaze>");
+        process::exit(1);
+    };
+
     let source = match std::fs::read_to_string(path) {
         Ok(s) => s,
         Err(e) => {
@@ -28,14 +41,33 @@ fn main() {
         }
     };
 
-    if let Err(msg) = run(&source, path) {
-        eprintln!("{msg}");
-        process::exit(1);
+    match command {
+        "run" => {
+            if let Err(msg) = run(&source, path) {
+                eprintln!("{msg}");
+                process::exit(1);
+            }
+        }
+        "check" => {
+            match check(&source, path) {
+                Ok(module) => {
+                    print_check_summary(&module, path);
+                }
+                Err(msg) => {
+                    eprintln!("{msg}");
+                    process::exit(1);
+                }
+            }
+        }
+        other => {
+            eprintln!("error: unknown command `{other}`");
+            eprintln!("usage: gaze <run|check> <file.gaze>");
+            process::exit(1);
+        }
     }
 }
 
 /// Lex + parse + effect check. Returns the AST or an error message.
-/// This is the `gaze check` pipeline.
 fn check(source: &str, path: &str) -> Result<ast::Module, String> {
     let tokens = lexer::Lexer::new(source)
         .tokenize()
@@ -74,8 +106,32 @@ fn run(source: &str, path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Print the effect summary for a checked module.
+fn print_check_summary(module: &ast::Module, path: &str) {
+    println!("{path}: ok");
+    for item in &module.items {
+        match item {
+            ast::Item::Function(f) => {
+                if f.effects.is_empty() {
+                    println!("  {}  (pure)", f.name);
+                } else {
+                    let effs: Vec<&str> = f.effects.iter().map(|e| e.as_str()).collect();
+                    println!("  {}  can {}", f.name, effs.join(", "));
+                }
+            }
+            ast::Item::Struct(s) => {
+                println!("  {}  struct", s.name);
+            }
+            ast::Item::Enum(e) => {
+                let variants: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+                println!("  {}  enum({})", e.name, variants.join(", "));
+            }
+        }
+    }
+}
+
 // ============================================================
-// Integration tests: parse and run source strings end to end.
+// Integration tests
 // ============================================================
 
 #[cfg(test)]
@@ -99,6 +155,13 @@ mod tests {
                     "error message didn't contain '{expected_substring}':\n{msg}\n\nsource:\n{source}"
                 );
             }
+        }
+    }
+
+    /// Check that a program passes effect checking.
+    fn check_ok(source: &str) {
+        if let Err(msg) = check(source, "<test>") {
+            panic!("check failed:\n{msg}\n\nsource:\n{source}");
         }
     }
 
@@ -177,13 +240,11 @@ mod tests {
 
     #[test]
     fn operator_precedence() {
-        // 2 + 3 * 4 = 14, not 20
         run_ok(r#"fn main() can Console { print(2 + 3 * 4) }"#);
     }
 
     #[test]
     fn parenthesized_expression() {
-        // (2 + 3) * 4 = 20
         run_ok(r#"fn main() can Console { print((2 + 3) * 4) }"#);
     }
 
@@ -473,5 +534,27 @@ mod tests {
             "#,
             "requires `can Console`",
         );
+    }
+
+    // --- gaze check ---
+
+    #[test]
+    fn check_passes_clean_program() {
+        check_ok(r#"
+            fn add(a: Int, b: Int) -> Int { a + b }
+            fn main() can Console { print(add(1, 2)) }
+        "#);
+    }
+
+    #[test]
+    fn check_catches_syntax_error() {
+        let result = check("fn main( {}", "<test>");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn check_catches_unknown_effect() {
+        let result = check("fn main() can Bogus {}", "<test>");
+        assert!(result.is_err());
     }
 }
