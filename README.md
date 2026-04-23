@@ -1,8 +1,8 @@
-# Lux
+# Gaze
 
 A programming language where every function shows what it does to the world.
 
-```lux
+```gaze
 fn fetch_forecast(city: String) -> Forecast can Net, Fail {
     let url = "https://api.weather.dev/v1/{city}"
     let response = net.get(url)?
@@ -31,9 +31,9 @@ fn parse_condition(raw: String) -> Condition {
 
 AI agents generate plausible code at scale. In every mainstream language, a "pure" function can secretly make HTTP calls, write to disk, or access a database, and nothing in the signature reveals it. Code review catches some of it. Most of it ships.
 
-Lux makes every observable behavior visible in the type signature. The keyword `can` declares what a function is allowed to do. Silence means purity. The compiler checks that the declaration is honest.
+Gaze makes every observable behavior visible in the type signature. The keyword `can` declares what a function is allowed to do. Silence means purity. The compiler checks that the declaration is honest.
 
-```lux
+```gaze
 fn summarize(order: Order) -> Summary {
     let subtotal = order.items |> map(.unit_price * .quantity) |> sum
     let tax = subtotal * order.tax_rate
@@ -45,7 +45,7 @@ No `can` clause. This function takes values, returns values, touches nothing. Te
 
 ## Ten Effects
 
-Every Lux program's behavior is described by a fixed vocabulary of ten effects:
+Every Gaze program's behavior is described by a fixed vocabulary of ten effects:
 
 | Effect | What it means |
 |--------|--------------|
@@ -60,12 +60,12 @@ Every Lux program's behavior is described by a fixed vocabulary of ten effects:
 | `Unsafe` | Raw pointers or FFI |
 | `Fail` | Can fail (replaces Result/Exception ceremony) |
 
-The vocabulary is fixed. Not extensible. This is deliberate: a fixed set means every Lux program's effects are comparable, auditable, and enforceable by CI policy.
+The vocabulary is fixed. Not extensible. This is deliberate: a fixed set means every Gaze program's effects are comparable, auditable, and enforceable by CI policy.
 
 ## The Audit Tool
 
 ```
-$ lux audit src/main.lux
+$ gaze audit src/main.gaze
 
 main                    can Net, Fs, Console, Fail
   load_config           can Fs, Fail
@@ -81,9 +81,9 @@ A complete manifest of what every function does. Machine-readable. Diffable. Enf
 
 ## Two Products
 
-**Lux** is a programming language with effect-tracked types, value semantics (no borrow checker, no GC), and Perceus reference counting. It's the native implementation of the effect system.
+**Gaze** is a programming language with effect-tracked types, value semantics (no borrow checker, no GC), and Perceus reference counting. It's the native implementation of the effect system.
 
-**liblux** is the effect checker extracted as a standalone library. It works on existing Python and JavaScript code. You don't need to learn Lux to use liblux. `liblux check agent.py` reports what your code does to the world.
+**libgaze** is the effect checker extracted as a standalone library. It works on existing Python and JavaScript code. You don't need to learn Gaze to use libgaze. `libgaze check agent.py` reports what your code does to the world.
 
 The language is the long game. The library is what ships first.
 
@@ -105,14 +105,14 @@ The language is the long game. The library is what ships first.
 
 The `examples/` directory contains:
 
-- **hello.lux** -- 5 lines. The simplest program.
-- **pipeline.lux** -- A web request handler with effect-tracked stages.
-- **pure_logic.lux** -- Business logic with zero effects.
-- **weather.lux** -- A CLI tool composing Net, Fs, Env, and Console.
-- **sandbox.lux** -- AI agent sandboxing via capability narrowing.
-- **concurrent.lux** -- Async work with spawn/await.
-- **testing.lux** -- Pure and effectful tests.
-- **traits.lux** -- Trait system with effect-aware methods.
+- **hello.gaze** -- 5 lines. The simplest program.
+- **pipeline.gaze** -- A web request handler with effect-tracked stages.
+- **pure_logic.gaze** -- Business logic with zero effects.
+- **weather.gaze** -- A CLI tool composing Net, Fs, Env, and Console.
+- **sandbox.gaze** -- AI agent sandboxing via capability narrowing.
+- **concurrent.gaze** -- Async work with spawn/await.
+- **testing.gaze** -- Pure and effectful tests.
+- **traits.gaze** -- Trait system with effect-aware methods.
 - **shortener/** -- A complete URL shortener (5 modules, 400+ lines) that stress-tested the language design.
 
 ## Documentation
@@ -127,17 +127,17 @@ The `examples/` directory contains:
 | [LANDSCAPE.md](LANDSCAPE.md) | Competitive analysis |
 | [USERS.md](USERS.md) | User personas and adoption |
 | [RESEARCH.md](RESEARCH.md) | 7-language comparison |
-| [MANIFESTO.md](MANIFESTO.md) | Why Lux, why now |
+| [MANIFESTO.md](MANIFESTO.md) | Why Gaze, why now |
 | [ROADMAP.md](ROADMAP.md) | Build phases |
 
 ## Status
 
-Lux is in the specification phase. The language design is documented, stress-tested against a real program (URL shortener), and the competitive landscape is mapped. No compiler exists yet.
+Gaze is in the specification phase. The language design is documented, stress-tested against a real program (URL shortener), and the competitive landscape is mapped. No compiler exists yet.
 
-Next: liblux (the effect checker for Python/JS), then the tree-walk interpreter for Lux itself.
+Next: libgaze (the effect checker for Python/JS), then the tree-walk interpreter for Gaze itself.
 
 ## License
 
-MIT. The entire project — the language spec, the compiler, liblux, all of it.
+MIT. The entire project — the language spec, the compiler, libgaze, all of it.
 
 The vocabulary becomes a standard only if everyone can use it. See DECISIONS.md #10.

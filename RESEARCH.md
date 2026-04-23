@@ -1,6 +1,6 @@
-# Language Comparison for Lux Design
+# Language Comparison for Gaze Design
 
-A research document covering Julia, and six novel languages with effect systems or safety innovations. Focus: design decisions, tradeoffs, and what Lux can steal.
+A research document covering Julia, and six novel languages with effect systems or safety innovations. Focus: design decisions, tradeoffs, and what Gaze can steal.
 
 ---
 
@@ -20,7 +20,7 @@ Julia's type system is **dynamic, nominative, and parametric**. It sits in a uni
 
 **Expressiveness.** The combination of parametric types, abstract type hierarchy, and multiple dispatch is remarkably expressive. "Holy traits" simulate Haskell-style type classes. Generated functions (`@generated`) can produce specialized method bodies based on input types at compile time. The cost: method ambiguity is a real problem. Two methods `f(x::A, y)` and `f(x, y::B)` are ambiguous for `f(a::A, b::B)`. Julia raises a `MethodError` rather than picking arbitrarily.
 
-**Design lesson for Lux:** Multiple dispatch is genuinely powerful for mathematical and scientific code. The invariance of type parameters is a pragmatic, performance-driven decision. But the lack of interfaces/traits as first-class concepts means API contracts are implicit, enforced by convention rather than the compiler.
+**Design lesson for Gaze:** Multiple dispatch is genuinely powerful for mathematical and scientific code. The invariance of type parameters is a pragmatic, performance-driven decision. But the lack of interfaces/traits as first-class concepts means API contracts are implicit, enforced by convention rather than the compiler.
 
 ### Side Effects and Purity
 
@@ -32,7 +32,7 @@ I/O is handled with plain function calls: `println()`, `open()`, `read()`. No mo
 
 **`@assume_effects` annotations** (Julia 1.8+) let programmers declare that a function is `:consistent` (same inputs produce same outputs), `:effect_free` (no side effects), `:terminates_globally`, or `:total` (all of the above). The compiler uses these for optimization (constant folding, dead code elimination). But again, these are unchecked assertions.
 
-**Design lesson for Lux:** Julia chose maximum convenience at the cost of any effect tracking. This makes it easy to write code but impossible to reason mechanically about what a function does. An effect system would be the single biggest divergence Lux could make from Julia's philosophy.
+**Design lesson for Gaze:** Julia chose maximum convenience at the cost of any effect tracking. This makes it easy to write code but impossible to reason mechanically about what a function does. An effect system would be the single biggest divergence Gaze could make from Julia's philosophy.
 
 ### Memory Model
 
@@ -47,7 +47,7 @@ I/O is handled with plain function calls: `println()`, `open()`, `read()`. No mo
 - `Ptr{T}` and `unsafe_load`/`unsafe_store!` exist for C interop. These bypass all safety checks.
 - `@inbounds` disables bounds checking, enabling buffer overruns.
 
-**Design lesson for Lux:** Julia's GC approach is simple and works well for its target audience (scientists, data analysts). The immutable-by-default struct design is strong: it enables stack allocation and eliminates a class of aliasing bugs. But the lack of any ownership discipline means GC pauses are unavoidable, and low-latency/embedded targets are difficult.
+**Design lesson for Gaze:** Julia's GC approach is simple and works well for its target audience (scientists, data analysts). The immutable-by-default struct design is strong: it enables stack allocation and eliminates a class of aliasing bugs. But the lack of any ownership discipline means GC pauses are unavoidable, and low-latency/embedded targets are difficult.
 
 ### Metaprogramming and Macros
 
@@ -59,7 +59,7 @@ Julia has **Lisp-style homoiconic metaprogramming**. Code is represented as `Exp
 
 **Generated functions.** `@generated` functions produce specialized method bodies based on the *types* (not values) of their arguments. They run at compile time and return a quoted expression that becomes the method body. This is a controlled form of type-level metaprogramming.
 
-**Design lesson for Lux:** Julia's metaprogramming is powerful but carries the usual risks: macros make code harder to understand, harder to debug, and harder to tool. The `@generated` function concept is interesting: it occupies a middle ground between full macro power and simple generics. Consider whether Lux needs full AST macros or whether staged computation and type-level programming are sufficient.
+**Design lesson for Gaze:** Julia's metaprogramming is powerful but carries the usual risks: macros make code harder to understand, harder to debug, and harder to tool. The `@generated` function concept is interesting: it occupies a middle ground between full macro power and simple generics. Consider whether Gaze needs full AST macros or whether staged computation and type-level programming are sufficient.
 
 ### Performance Model
 
@@ -79,7 +79,7 @@ Julia uses **JIT compilation** via LLVM. When a function is first called with sp
 
 **`@inbounds`** eliminates array bounds checks. **`@simd`** enables SIMD vectorization. **`@fastmath`** allows reordering of floating-point operations. These are opt-in performance annotations, not safety annotations.
 
-**Design lesson for Lux:** Julia proves that a high-level dynamic language can achieve C-like speed via specialization. The cost is complexity in understanding what the compiler will and won't optimize. A statically-typed language with similar specialization could avoid the type-stability pitfall entirely.
+**Design lesson for Gaze:** Julia proves that a high-level dynamic language can achieve C-like speed via specialization. The cost is complexity in understanding what the compiler will and won't optimize. A statically-typed language with similar specialization could avoid the type-stability pitfall entirely.
 
 ### Weaknesses
 
@@ -137,7 +137,7 @@ This unifies exceptions, state, I/O, nondeterminism, async, coroutines, and gene
 
 **Perceus reference counting.** Koka uses precise, compiler-inserted reference counting with a novel optimization called "Perceus" (Precise Reference Counting with Reuse). It detects when a data structure is uniquely owned and reuses its memory in-place, achieving functional-programming-style code with imperative-style memory performance. No GC pauses. Deterministic destruction.
 
-### What Lux Can Learn
+### What Gaze Can Learn
 
 1. **Effect rows are the right granularity for effect tracking.** Not monads (too verbose, composition is painful), not no tracking (Julia). Row-polymorphic effects let generic functions transparently propagate effects.
 
@@ -164,13 +164,13 @@ The system closely mirrors Koka's algebraic effects but with different syntax an
 
 The content-addressed code model provides a different kind of safety: there's no dependency hell, no version conflicts, no "it works on my machine." Code is identified by what it does, not what it's called.
 
-### What Lux Can Learn
+### What Gaze Can Learn
 
 1. **The ability/handler pattern is a proven, practical effect system.** Both Koka and Unison have validated it.
 
-2. **Content-addressed code is fascinating but radical.** It solves real problems (dependency management, code distribution) but requires rethinking the entire development workflow. For Lux: probably too radical for the core language, but the concept of hash-identified modules is worth exploring.
+2. **Content-addressed code is fascinating but radical.** It solves real problems (dependency management, code distribution) but requires rethinking the entire development workflow. For Gaze: probably too radical for the core language, but the concept of hash-identified modules is worth exploring.
 
-3. **Distributed computing as a language feature, not a library.** Unison's runtime can ship computations to remote nodes because code is identified by hash. The node just needs the hash to run the code. This is genuinely novel and worth studying if Lux has distributed computing ambitions.
+3. **Distributed computing as a language feature, not a library.** Unison's runtime can ship computations to remote nodes because code is identified by hash. The node just needs the hash to run the code. This is genuinely novel and worth studying if Gaze has distributed computing ambitions.
 
 ---
 
@@ -197,11 +197,11 @@ Austral is the purest expression of linear types in a practical language. Its de
 
 **No implicit function calls.** No destructors are implicitly inserted. If you have a linear value, you must explicitly consume it. This is the tradeoff vs Rust: more verbose, but no hidden control flow.
 
-### What Lux Can Learn
+### What Gaze Can Learn
 
 1. **Linear types solve resource management without GC.** The two-universe model (free/linear) is simple to understand and implement. It's a credible alternative to Rust's borrow checker.
 
-2. **Capability-based security is elegant.** Passing a `Terminal` capability to a function is cleaner than permission flags, and it's enforced at compile time. Lux should consider capability tokens for I/O and system resources.
+2. **Capability-based security is elegant.** Passing a `Terminal` capability to a function is cleaner than permission flags, and it's enforced at compile time. Gaze should consider capability tokens for I/O and system resources.
 
 3. **Simplicity is a feature.** Austral proves that a useful systems language can fit in a single person's head. The spec is intentionally small. Compare this to Rust, where the borrow checker, lifetime system, trait system, and async machinery create substantial learning surface.
 
@@ -231,7 +231,7 @@ Vale uses "generational references" as its primary safety mechanism. Every alloc
 
 **No borrow checker.** Vale deliberately avoids Rust-style lifetime annotations. The claim is that generational references provide similar safety with less programmer friction, at the cost of runtime checking in debug mode.
 
-### What Lux Can Learn
+### What Gaze Can Learn
 
 1. **Generational references are a credible middle ground** between GC (zero programmer effort, runtime cost) and ownership (zero runtime cost, high programmer effort). The safety is not compile-time, but it's deterministic and catchable.
 
@@ -262,7 +262,7 @@ Effects are first-class. You can define custom effects, write handlers that inte
 
 **The team explicitly discourages production use.** Eff is a research vehicle. It has no library ecosystem, minimal documentation, and changes frequently.
 
-### What Lux Can Learn
+### What Gaze Can Learn
 
 1. **Eff validated the theory.** Koka and Unison built on Eff's foundations. The handler pattern works.
 
@@ -302,7 +302,7 @@ This is subtly but importantly different from Rust:
 - No null pointers (no pointers at all in safe code)
 - No dangling references (no references, only projections)
 
-### What Lux Can Learn
+### What Gaze Can Learn
 
 1. **Value semantics eliminate entire categories of bugs by construction.** If there are no references, there are no reference bugs. Period. This is simpler than Rust's borrow checker because there's nothing to borrow.
 
@@ -331,7 +331,7 @@ This is subtly but importantly different from Rust:
 
 ---
 
-## Synthesis: What Should Lux Take?
+## Synthesis: What Should Gaze Take?
 
 ### From Julia
 - **Multiple dispatch** is the most expressive function overloading mechanism available. Consider it as the primary dispatch mechanism, but combine it with compile-time type checking.
@@ -359,13 +359,13 @@ This is subtly but importantly different from Rust:
 - **Content-addressed modules** for dependency management. Even if the code isn't hash-identified, the module/package system could use content hashing for reproducible builds.
 
 ### What to Avoid
-- Julia's lack of any effect tracking or compile-time safety. That's the core problem Lux should solve.
+- Julia's lack of any effect tracking or compile-time safety. That's the core problem Gaze should solve.
 - Rust's lifetime annotation complexity. Hylo and Austral show there are simpler paths to safety.
-- Koka's performance overhead for deep handlers. If Lux has algebraic effects, optimize for the common case (tail-resumptive handlers).
+- Koka's performance overhead for deep handlers. If Gaze has algebraic effects, optimize for the common case (tail-resumptive handlers).
 - Austral's extreme explicitness. Some implicit destruction (affine types with `Drop`) is worth the convenience.
 - Eff's research-only status. Take the ideas, not the implementation approach.
 
-### The Lux Hypothesis
+### The Gaze Hypothesis
 
 A language that combines:
 1. **Static types with multiple dispatch** (Julia's expressiveness, compile-time checking)

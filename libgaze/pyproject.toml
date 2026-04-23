@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "liblux"
+name = "libgaze"
 version = "0.1.0"
 description = "See what your code does to the world before it runs."
 readme = "README.md"
@@ -31,11 +31,11 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/itchymutt/lux"
 Repository = "https://github.com/itchymutt/lux"
-Documentation = "https://github.com/itchymutt/lux/tree/main/liblux"
+Documentation = "https://github.com/itchymutt/lux/tree/main/libgaze"
 Issues = "https://github.com/itchymutt/lux/issues"
 
 [project.scripts]
-liblux = "liblux.cli:main"
+libgaze = "libgaze.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.4"]

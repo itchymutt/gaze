@@ -1,11 +1,11 @@
-# Lux Roadmap
+# Gaze Roadmap
 
 ## Two artifacts, not one
 
-Lux produces two things:
+Gaze produces two things:
 
 1. **The language**: a general-purpose programming language with effect-tracked types, value semantics, and Perceus RC. This is the visible product.
-2. **liblux**: the effect checker as a standalone library. A formal system for tracking what code does to the world, extractable to other languages, AI agent protocols, and CI pipelines. This is the lasting contribution.
+2. **libgaze**: the effect checker as a standalone library. A formal system for tracking what code does to the world, extractable to other languages, AI agent protocols, and CI pipelines. This is the lasting contribution.
 
 The language is the demo. The effect system is the library. See MANIFESTO.md for the full argument.
 
@@ -26,7 +26,7 @@ Each phase produces something usable. You don't need all six to start learning f
 
 ## Phase 0: Specification (current)
 
-**Goal**: A complete enough spec that someone could implement Lux from the document alone.
+**Goal**: A complete enough spec that someone could implement Gaze from the document alone.
 
 Deliverables:
 - [x] DESIGN.md: thesis, principles, effect system overview
@@ -54,11 +54,11 @@ Deliverables:
 
 ## Phase 1: Tree-Walk Interpreter
 
-**Goal**: Run Lux programs. Slowly. Correctly.
+**Goal**: Run Gaze programs. Slowly. Correctly.
 
 A tree-walk interpreter executes the AST directly. No compilation, no optimization. The point is to validate the language design by running real programs and discovering what's awkward, what's missing, and what's wrong.
 
-Implementation language: **Rust** (ironic but practical: fast, good parsing libraries, pattern matching for AST traversal, no GC to interfere with Lux's own memory model experiments).
+Implementation language: **Rust** (ironic but practical: fast, good parsing libraries, pattern matching for AST traversal, no GC to interfere with Gaze's own memory model experiments).
 
 **Build methodology: sprint to demos.**
 
@@ -66,17 +66,17 @@ Don't build the lexer, then the parser, then the type checker, then the interpre
 
 Demo sequence:
 
-1. **`hello.lux` runs.** Parse it, type-check it (trivial: one function, `can Console`), interpret it, see "Hello, world!" on screen. This proves: lexer, parser, basic type checker, basic interpreter, Console effect module. First demo.
+1. **`hello.gaze` runs.** Parse it, type-check it (trivial: one function, `can Console`), interpret it, see "Hello, world!" on screen. This proves: lexer, parser, basic type checker, basic interpreter, Console effect module. First demo.
 
-2. **`pure_logic.lux` runs.** Pure functions, pattern matching, pipelines, field projections. This proves: value semantics, function calls, match expressions, the pipeline operator. No effects needed beyond what's already built.
+2. **`pure_logic.gaze` runs.** Pure functions, pattern matching, pipelines, field projections. This proves: value semantics, function calls, match expressions, the pipeline operator. No effects needed beyond what's already built.
 
-3. **`lux check` works on all examples.** Type-check and effect-check without interpreting. This proves: the full effect system (inference, propagation, polymorphism, boundaries). This is the first tool that's useful independent of the interpreter.
+3. **`gaze check` works on all examples.** Type-check and effect-check without interpreting. This proves: the full effect system (inference, propagation, polymorphism, boundaries). This is the first tool that's useful independent of the interpreter.
 
-4. **`lux audit` works on all examples.** Print the effect manifest. Machine-readable JSON output. This proves: the audit tool, the manifest format. This is the second independently useful tool.
+4. **`gaze audit` works on all examples.** Print the effect manifest. Machine-readable JSON output. This proves: the audit tool, the manifest format. This is the second independently useful tool.
 
-5. **`weather.lux` runs.** Net, Fs, Env, Console, Fail — five effects in one program. This proves: multiple effect modules, `?` propagation, `catch`, capability access, string interpolation.
+5. **`weather.gaze` runs.** Net, Fs, Env, Console, Fail — five effects in one program. This proves: multiple effect modules, `?` propagation, `catch`, capability access, string interpolation.
 
-6. **`sandbox.lux` runs.** Capability narrowing. This proves: `Net.restrict()`, `Fs.restrict_to()`, the capability model. The thesis demo.
+6. **`sandbox.gaze` runs.** Capability narrowing. This proves: `Net.restrict()`, `Fs.restrict_to()`, the capability model. The thesis demo.
 
 7. **`shortener/` runs.** The full URL shortener: 5 modules, 400+ lines, 7 effects. This proves: the module system, imports, the full effect system under real-world stress. If this runs correctly, the language design is validated.
 
@@ -85,8 +85,8 @@ Deliverables (emerge from the demo sequence):
 - [ ] Parser (tokens -> AST)
 - [ ] Type checker (AST -> typed AST, including effect inference)
 - [ ] Interpreter (typed AST -> execution)
-- [ ] `lux check`: type-check and effect-check without running
-- [ ] `lux audit`: print the effect manifest
+- [ ] `gaze check`: type-check and effect-check without running
+- [ ] `gaze audit`: print the effect manifest
 - [ ] REPL (read-eval-print loop with effect tracking display)
 - [ ] Test suite: every example program runs correctly
 
@@ -112,7 +112,7 @@ The interpreter should practice what the language preaches. Three rules, all fro
 
 ## Phase 2: Bytecode Compiler + VM
 
-**Goal**: Run Lux programs fast enough for real use.
+**Goal**: Run Gaze programs fast enough for real use.
 
 Compile to a custom bytecode and execute on a stack-based VM. This is the Lua/Python/Ruby approach. Not as fast as native code, but fast enough for most programs and much faster than tree-walking.
 
@@ -121,53 +121,53 @@ Deliverables:
 - [ ] Compiler (typed AST -> bytecode)
 - [ ] Virtual machine (bytecode -> execution)
 - [ ] Perceus reference counting implementation
-- [ ] `lux build`: compile to bytecode
-- [ ] `lux run`: compile and execute
+- [ ] `gaze build`: compile to bytecode
+- [ ] `gaze run`: compile and execute
 - [ ] Benchmark suite: compare to Python, Ruby, Lua, Go
 
 ---
 
 ## Phase 3: Native Compilation
 
-**Goal**: Lux programs compile to native binaries.
+**Goal**: Gaze programs compile to native binaries.
 
-LLVM backend (like Rust, Zig, Koka) or Cranelift (like Wasmtime, faster compilation). Native compilation is where Lux becomes a real systems language.
+LLVM backend (like Rust, Zig, Koka) or Cranelift (like Wasmtime, faster compilation). Native compilation is where Gaze becomes a real systems language.
 
 Deliverables:
 - [ ] LLVM or Cranelift backend
 - [ ] Optimization passes (inlining, dead code, constant folding)
 - [ ] Perceus RC optimizations (reuse analysis, elision)
-- [ ] `lux build --release`: optimized native binary
+- [ ] `gaze build --release`: optimized native binary
 - [ ] Benchmark suite: compare to Rust, Go, C
 
 ---
 
 ## Phase 4: Ecosystem
 
-**Goal**: Lux is usable for real projects.
+**Goal**: Gaze is usable for real projects.
 
 Deliverables:
 - [ ] Standard library (collections, I/O, networking, JSON, HTTP)
-- [ ] Package manager (`lux pkg`)
-- [ ] `lux fmt`: canonical formatter
-- [ ] `lux test`: test runner with effect-aware testing
+- [ ] Package manager (`gaze pkg`)
+- [ ] `gaze fmt`: canonical formatter
+- [ ] `gaze test`: test runner with effect-aware testing
 - [ ] LSP server (editor integration)
-- [ ] `lux sandbox`: restricted capability execution
+- [ ] `gaze sandbox`: restricted capability execution
 - [ ] Documentation generator
 - [ ] CI/CD integration (GitHub Actions, etc.)
 
 ---
 
-## Phase 5: liblux (The Effect Checker as a Library)
+## Phase 5: libgaze (The Effect Checker as a Library)
 
-**Goal**: Extract the effect system as a standalone tool that works beyond Lux.
+**Goal**: Extract the effect system as a standalone tool that works beyond Gaze.
 
 This is the Ghostty/libghostty move. The language validates the effect system. The library makes it available everywhere.
 
 Deliverables:
-- [ ] `liblux-spec`: formal specification of the effect vocabulary, propagation rules, and capability model
-- [ ] `liblux-core`: Rust library implementing effect checking on a generic AST
-- [ ] `lux audit` as a CI gate (reject PRs with unexpected effects)
+- [ ] `libgaze-spec`: formal specification of the effect vocabulary, propagation rules, and capability model
+- [ ] `libgaze-core`: Rust library implementing effect checking on a generic AST
+- [ ] `gaze audit` as a CI gate (reject PRs with unexpected effects)
 - [ ] Effect policy files: declare what effects a codebase, module, or function is allowed to use
 - [ ] Adapters for other languages:
   - [ ] TypeScript plugin (effect annotations in JSDoc or decorators)
@@ -175,20 +175,20 @@ Deliverables:
   - [ ] Rust proc macro (`#[can(Net, Db)]`)
 - [ ] AI agent protocol: generated code ships with an effect manifest, orchestrator verifies before execution
 - [ ] Sandbox runtime for untrusted AI-generated code
-- [ ] Benchmark: measure AI code generation accuracy in Lux vs Rust vs Go vs Python
+- [ ] Benchmark: measure AI code generation accuracy in Gaze vs Rust vs Go vs Python
 
 ---
 
 ## Phase 6: Ecosystem and Adoption
 
-**Goal**: Lux is usable for real projects. liblux is integrated into real CI pipelines.
+**Goal**: Gaze is usable for real projects. libgaze is integrated into real CI pipelines.
 
 Deliverables:
-- [ ] Package manager (`lux pkg`)
+- [ ] Package manager (`gaze pkg`)
 - [ ] LSP server (editor integration)
 - [ ] Documentation generator
-- [ ] GitHub Actions for `lux audit` and effect policy enforcement
-- [ ] Case studies: real projects built in Lux, real CI pipelines using liblux
+- [ ] GitHub Actions for `gaze audit` and effect policy enforcement
+- [ ] Case studies: real projects built in Gaze, real CI pipelines using libgaze
 
 ---
 
@@ -196,8 +196,8 @@ Deliverables:
 
 Phase 0 is where we are. The next concrete step is finishing the specification, then building the tree-walk interpreter. The interpreter is the fastest path to learning whether the language design works.
 
-But the liblux extraction can start in parallel with Phase 1. The effect checking rules are already specified. A standalone Rust library that takes an AST and returns an effect manifest could exist before the full language interpreter does. This is the artifact most likely to matter in the short term: AI agent orchestrators need effect checking now, not after a five-phase language build.
+But the libgaze extraction can start in parallel with Phase 1. The effect checking rules are already specified. A standalone Rust library that takes an AST and returns an effect manifest could exist before the full language interpreter does. This is the artifact most likely to matter in the short term: AI agent orchestrators need effect checking now, not after a five-phase language build.
 
-The implementation language question: **Rust** is the pragmatic choice (fast, good ecosystem, pattern matching). **Lux itself** is the aspirational choice (self-hosting, but requires bootstrapping). **Go** is the simple choice (fast compilation, easy to write, but no sum types or pattern matching). **Zig** is the interesting choice (comptime, manual memory, no hidden allocations).
+The implementation language question: **Rust** is the pragmatic choice (fast, good ecosystem, pattern matching). **Gaze itself** is the aspirational choice (self-hosting, but requires bootstrapping). **Go** is the simple choice (fast compilation, easy to write, but no sum types or pattern matching). **Zig** is the interesting choice (comptime, manual memory, no hidden allocations).
 
-Recommendation: start in Rust. Self-host later when Lux is mature enough.
+Recommendation: start in Rust. Self-host later when Gaze is mature enough.

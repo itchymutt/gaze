@@ -1,0 +1,9 @@
+[package]
+name = "gaze"
+version = "0.1.0"
+edition = "2024"
+description = "The Gaze programming language interpreter"
+license = "MIT"
+authors = ["Roberta Carraro"]
+
+[dependencies]

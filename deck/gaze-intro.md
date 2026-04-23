@@ -68,12 +68,12 @@ style: |
 <!-- _class: lead -->
 <!-- _paginate: false -->
 
-# Lux
+# Gaze
 
 A language that shows its work.
 
 <!--
-Lux is a programming language where every function declares what it does to the world. The compiler enforces it. Designed for a world where AI agents write most of the code.
+Gaze is a programming language where every function declares what it does to the world. The compiler enforces it. Designed for a world where AI agents write most of the code.
 -->
 
 ---
@@ -116,7 +116,7 @@ This is the fundamental problem. In every mainstream language, a function can se
 
 ---
 
-## Lux: effects in the type system
+## Gaze: effects in the type system
 
 ```
 fn transform(records: List<Record>) -> List<Record> {
@@ -155,14 +155,14 @@ The keyword "can" reads as English. "This function can touch the network, can ac
 | **Fail** | Can fail |
 
 <!--
-The vocabulary is deliberately fixed. Not extensible by user code. This is the key design decision. A fixed set means every Lux program's effects are comparable, auditable, and enforceable by CI policy. An AI agent can be told "generate code with no Net or Unsafe effects" and the compiler enforces it. Deno proved this model works with ~7 runtime permission categories. Lux moves it to compile time.
+The vocabulary is deliberately fixed. Not extensible by user code. This is the key design decision. A fixed set means every Gaze program's effects are comparable, auditable, and enforceable by CI policy. An AI agent can be told "generate code with no Net or Unsafe effects" and the compiler enforces it. Deno proved this model works with ~7 runtime permission categories. Gaze moves it to compile time.
 -->
 
 ---
 
 <!-- _class: metric -->
 
-## `lux audit`
+## `gaze audit`
 
 The killer feature.
 
@@ -175,7 +175,7 @@ lux audit prints a complete manifest of what every function in your program does
 ## The audit manifest
 
 ```
-$ lux audit src/main.lux
+$ gaze audit src/main.lux
 
 main                  can Net, Fs, Console, Fail
   load_config         can Fs, Fail
@@ -207,21 +207,21 @@ This is the Ghostty/libghostty insight. Mitchell Hashimoto built Ghostty as a te
 
 <!-- _class: lead -->
 
-# Lux is the language.<br>liblux is the library.
+# Gaze is the language.<br>libgaze is the library.
 
 The effect checker, extracted as a standalone tool.
 Works on **existing Python code**. No new language needed.
 
 <!--
-liblux exists today. It's a Python package that scans your code and reports which of the 10 effects each function performs. It walks the AST, resolves imports, and maps 80+ Python modules to effects. 22 tests passing. The language is the long game. The library ships now.
+libgaze exists today. It's a Python package that scans your code and reports which of the 10 effects each function performs. It walks the AST, resolves imports, and maps 80+ Python modules to effects. 22 tests passing. The language is the long game. The library ships now.
 -->
 
 ---
 
-## liblux in action
+## libgaze in action
 
 ```
-$ liblux check agent.py
+$ libgaze check agent.py
 
 agent.py  can Db, Env, Fs, Unsafe
 
@@ -237,7 +237,7 @@ Four functions. Four effect signatures. Zero are pure.
 The manifest tells you everything before you run a line.
 
 <!--
-This is real output from liblux running against a test fixture that simulates malicious agent code. subprocess calls are Unsafe. os.environ access is Env. open() is Fs. sqlite3 is Db. eval() is Unsafe. The tool catches all of it through static AST analysis.
+This is real output from libgaze running against a test fixture that simulates malicious agent code. subprocess calls are Unsafe. os.environ access is Env. open() is Fs. sqlite3 is Db. eval() is Unsafe. The tool catches all of it through static AST analysis.
 -->
 
 ---
@@ -261,7 +261,7 @@ This is real output from liblux running against a test fixture that simulates ma
   <div class="arrow">→</div>
   <div class="step step-accent">
     <div class="step-num">2</div>
-    <div class="step-text">liblux produces manifest</div>
+    <div class="step-text">libgaze produces manifest</div>
   </div>
   <div class="arrow">→</div>
   <div class="step">
@@ -282,7 +282,7 @@ The agent can't secretly access the network.
 The type system prevents it. Not a sandbox. A proof.
 
 <!--
-In game theory, a commitment device makes defection impossible or detectable. Docker containers are runtime sandboxes: they detect violations after they happen. Lux's effect system is a compile-time commitment device: it prevents violations before they happen. The code that would violate the policy doesn't compile. This is strictly stronger than runtime sandboxing, and cheaper to enforce.
+In game theory, a commitment device makes defection impossible or detectable. Docker containers are runtime sandboxes: they detect violations after they happen. Gaze's effect system is a compile-time commitment device: it prevents violations before they happen. The code that would violate the policy doesn't compile. This is strictly stronger than runtime sandboxing, and cheaper to enforce.
 -->
 
 ---
@@ -291,7 +291,7 @@ In game theory, a commitment device makes defection impossible or detectable. Do
 
 | Approach | Static? | Fixed vocabulary? | AI-focused? |
 |---|---|---|---|
-| **Lux / liblux** | **Yes** | **Yes (10 effects)** | **Yes** |
+| **Gaze / libgaze** | **Yes** | **Yes (10 effects)** | **Yes** |
 | Koka | Yes | No (open) | No |
 | Deno permissions | No (runtime) | Yes (~7) | No |
 | Rust effects RFC | Planned | No (async/const/try) | No |
@@ -301,7 +301,7 @@ In game theory, a commitment device makes defection impossible or detectable. Do
 
 The PL world has static + open.
 The AI world has runtime + ad-hoc.
-**Lux connects them.**
+**Gaze connects them.**
 
 <!--
 We researched every language with an effect system, every AI agent framework's safety model, every relevant RFC. The combination of static checking, fixed vocabulary, and AI focus is genuinely unoccupied. Deno validates the fixed-vocabulary model at runtime. Koka validates effect systems in types. Nobody has combined them for AI code safety.
@@ -316,10 +316,10 @@ We researched every language with an effect system, every AI agent framework's s
 **LLM07:** Insecure Plugin Design
 **LLM08:** Excessive Agency
 
-Lux is the answer.
+Gaze is the answer.
 
 <!--
-OWASP's Top 10 for LLM Applications identifies exactly the problems Lux solves. LLM07: "LLM plugins processing untrusted inputs and having insufficient access control risk severe exploits." LLM08: "Granting LLMs unchecked autonomy to take action can lead to unintended consequences." The market demand exists. The solution doesn't. Yet.
+OWASP's Top 10 for LLM Applications identifies exactly the problems Gaze solves. LLM07: "LLM plugins processing untrusted inputs and having insufficient access control risk severe exploits." LLM08: "Granting LLMs unchecked autonomy to take action can lead to unintended consequences." The market demand exists. The solution doesn't. Yet.
 -->
 
 ---
@@ -331,5 +331,5 @@ OWASP's Top 10 for LLM Applications identifies exactly the problems Lux solves. 
 # The language is one client.
 
 <!--
-HCL wasn't a product. It was infrastructure that Terraform, Vault, Consul, Nomad, and Packer all built on. The vocabulary was the platform. Lux's ten effects are our HCL. If this vocabulary becomes the standard way to describe what code does to the world, Lux wins regardless of how many people write Lux code. The vocabulary is the platform. The language is one implementation. liblux is the distribution mechanism.
+HCL wasn't a product. It was infrastructure that Terraform, Vault, Consul, Nomad, and Packer all built on. The vocabulary was the platform. Gaze's ten effects are our HCL. If this vocabulary becomes the standard way to describe what code does to the world, Gaze wins regardless of how many people write Gaze code. The vocabulary is the platform. The language is one implementation. libgaze is the distribution mechanism.
 -->

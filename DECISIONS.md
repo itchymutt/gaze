@@ -10,7 +10,7 @@ Every "X over Y because Z" in one place. These are positions, not preferences.
 **Over:** Anonymous structural types (TypeScript-style) or named structs for everything.
 **Because:** Anonymous structural types make the type checker dramatically more complex (structural subtyping, row polymorphism, width subtyping). Named structs for every JSON response shape is Java-level ceremony. A `Record` type is the honest middle: it's a `Map<String, Value>` with literal syntax.
 
-```lux
+```gaze
 // Record literal syntax: #{ key: value }
 fn json_response(status: u16, data: Record) -> HttpResponse {
     HttpResponse {
@@ -30,7 +30,7 @@ json_response(201, #{
 
 `#{ }` is the record literal. It's not a struct (no type name, no compile-time field checking). It's a bag of key-value pairs that serializes to JSON. The `#` prefix distinguishes it from blocks.
 
-For typed APIs between Lux modules, use named structs. For serialization boundaries (JSON responses, config files, log entries), use records. Two tools, two jobs.
+For typed APIs between Gaze modules, use named structs. For serialization boundaries (JSON responses, config files, log entries), use records. Two tools, two jobs.
 
 **Would revisit if:** The type system turns out to need structural types for other reasons (e.g., trait objects, database row types).
 
@@ -44,7 +44,7 @@ For typed APIs between Lux modules, use named structs. For serialization boundar
 
 Effect modules are the only implicit imports. User modules always require explicit import. The distinction: effect modules are part of the language, not the ecosystem.
 
-```lux
+```gaze
 // No import needed for net, db, fs, etc.
 // The can clause is the import AND the permission.
 fn fetch(url: String) -> Bytes can Net, Fail {
@@ -68,7 +68,7 @@ import model.{User}
 
 This matters for testing (pass an in-memory DB), sandboxing (pass a restricted DB), and multi-tenancy (pass different DBs for different tenants).
 
-```lux
+```gaze
 // The connection is a value. It flows through parameters.
 fn main() can Console, Env, Fail {
     let config = load_config()?
@@ -101,7 +101,7 @@ This is the Austral model. And it's cleaner. Let me think through the implicatio
 
 Both are valid. Module access is the default. Capability access is for when you need control. The compiler accepts both.
 
-```lux
+```gaze
 // Module access: can Db grants access to the implicit db module
 fn save_v1(link: ShortLink) can Db, Fail {
     db.execute("insert ...", link)?
@@ -125,7 +125,7 @@ fn save_v2(db: Db, link: ShortLink) can Fail {
 **Over:** `return Err(e)` (Rust-style, brings back Result ceremony) or `throw` (exception-style, implies unwinding).
 **Because:** `fail` is the counterpart to `?`. `?` propagates a failure upward. `fail` creates a failure. Together they are the complete vocabulary for the `Fail` effect. `fail` having type `Never` means it's valid in any expression position:
 
-```lux
+```gaze
 let body = req.body ?? fail InvalidRequest("missing body")
 let user = find_user(id) ?? fail NotFound(id)
 let config = parse_config(raw) ?? fail BadConfig("invalid format")
@@ -135,7 +135,7 @@ let config = parse_config(raw) ?? fail BadConfig("invalid format")
 
 `catch` is how you handle failures. It's the boundary where `Fail` is absorbed:
 
-```lux
+```gaze
 let result = catch do_risky_thing() {
     Ok(value) => value,
     Err(e) => default_value,
@@ -155,7 +155,7 @@ let result = catch do_risky_thing() {
 
 The enclosing function must declare effects that cover everything the closure does. If the closure calls `net.get()`, the enclosing function needs `can Net`.
 
-```lux
+```gaze
 // The closure's effects are inferred. main must cover them.
 fn main() can Net, Console, Env, Fail {
     net.serve(config.port, |req| {    // closure inferred: can Db, Time, Rand, Fail
@@ -166,7 +166,7 @@ fn main() can Net, Console, Env, Fail {
 
 For function types in signatures (not inline closures), effects must be explicit:
 
-```lux
+```gaze
 // When a function type appears in a signature, effects are explicit.
 fn map<T, U>(list: List<T>, f: fn(T) -> U can E) -> List<U> can E
 ```
@@ -181,7 +181,7 @@ fn map<T, U>(list: List<T>, f: fn(T) -> U can E) -> List<U> can E
 **Over:** Only explicit generics (verbose for simple cases).
 **Because:** `fn encode(data: impl Encode)` is clearer than `fn encode<T: Encode>(data: T)` when there's one bounded parameter. When there are multiple or the bound is used in the return type, use explicit generics.
 
-```lux
+```gaze
 // These are equivalent:
 fn print_it(x: impl Display) can Console { print(x.display()) }
 fn print_it<T: Display>(x: T) can Console { print(x.display()) }
@@ -200,7 +200,7 @@ fn larger<T: Ord>(a: T, b: T) -> T { if a > b { a } else { b } }
 **Over:** Folding randomness into `Env` or `Time`.
 **Because:** Reproducibility. A function marked `can Rand` can be made deterministic by seeding the RNG. A function marked `can Time` cannot (time always advances). Separating them means you can write property-based tests that control randomness without mocking the clock.
 
-```lux
+```gaze
 // In tests, seed the RNG for reproducibility:
 test "slug generation is deterministic when seeded" can Rand {
     Rand.seed(42)
@@ -223,7 +223,7 @@ test "slug generation is deterministic when seeded" can Rand {
 
 This also means `fail` works in `if`/`else`, `match` arms, and any other expression position:
 
-```lux
+```gaze
 let x = if condition { value } else { fail SomeError }
 let y = match thing {
     Good(v) => v,
@@ -243,9 +243,9 @@ let y = match thing {
 
 The principle comes from the Zig compiler's approach to error reporting: Zig doesn't store file/line/column info during parsing, because parsing succeeds most of the time and memory is speed (cache locality dominates). If an error occurs, Zig reparses from the beginning in a slow path that collects diagnostics. The error case is rare, so making it slower is free.
 
-Applied to Lux:
+Applied to Gaze:
 
-```lux
+```gaze
 // fail creates a marker, not a formatted error.
 // No allocation, no string formatting, no stack capture.
 let user = find_user(id) ?? fail NotFound(id)
@@ -270,15 +270,15 @@ The compiler can use effect annotations to optimize further: a pure function (no
 
 ---
 
-## 10. liblux is open source, permissively licensed.
+## 10. libgaze is open source, permissively licensed.
 
-**Chose:** liblux (the effect checker library) is open source under a permissive license (MIT or Apache-2.0).
+**Chose:** libgaze (the effect checker library) is open source under a permissive license (MIT or Apache-2.0).
 **Over:** Proprietary licensing, copyleft (GPL), or open-core with a commercial effect checker.
-**Because:** liblux's value is proportional to its adoption. The vocabulary becomes a standard only if everyone can use it. A proprietary effect checker is an effect checker that agents won't use.
+**Because:** libgaze's value is proportional to its adoption. The vocabulary becomes a standard only if everyone can use it. A proprietary effect checker is an effect checker that agents won't use.
 
 Mitchell Hashimoto's "building block economy" observation (April 2026): agents prefer open and free software over closed and commercial. Independent research confirms this — models pick open alternatives under diverse circumstances. libghostty reached millions of daily users in two months because it was a freely available building block. Ghostty the application took eighteen months to reach one million.
 
-liblux is the building block. The vocabulary spreads through the building block. The building block spreads through openness. A permissively licensed liblux that any agent framework, CI pipeline, or IDE plugin can embed without legal review is the fastest path to making the ten-effect vocabulary the standard.
+libgaze is the building block. The vocabulary spreads through the building block. The building block spreads through openness. A permissively licensed libgaze that any agent framework, CI pipeline, or IDE plugin can embed without legal review is the fastest path to making the ten-effect vocabulary the standard.
 
 The language can have a more nuanced licensing story later. The library cannot. This is a distribution decision, not an ideological one.
 

@@ -1,4 +1,4 @@
-"""Simulated AI agent code. The kind of thing liblux should catch."""
+"""Simulated AI agent code. The kind of thing libgaze should catch."""
 
 import os
 import sqlite3

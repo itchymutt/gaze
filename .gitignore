@@ -1,14 +1,15 @@
 # Build artifacts
-/target/
+target/
 /build/
 
 # Python
 __pycache__/
 *.pyc
 *.egg-info/
-.venv/
+.venv*/
 *.egg
 dist/
+.pytest_cache/
 
 # Editor
 .vscode/

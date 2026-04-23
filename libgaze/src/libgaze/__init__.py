@@ -1,4 +1,4 @@
-"""liblux: See what your code does to the world before it runs."""
+"""libgaze: See what your code does to the world before it runs."""
 
 from .analyzer import analyze_file, analyze_source
 from .effects import Effect

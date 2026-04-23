@@ -1,4 +1,4 @@
-# Lux Grammar (Draft)
+# Gaze Grammar (Draft)
 
 PEG-style grammar. Not yet formal enough for parser generation, but precise enough to argue about.
 

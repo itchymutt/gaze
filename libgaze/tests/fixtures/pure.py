@@ -1,4 +1,4 @@
-"""A pure module. No effects. liblux should report nothing."""
+"""A pure module. No effects. libgaze should report nothing."""
 
 
 def add(a: int, b: int) -> int:

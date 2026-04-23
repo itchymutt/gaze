@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from liblux import Effect, analyze_file, analyze_source
+from libgaze import Effect, analyze_file, analyze_source
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

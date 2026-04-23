@@ -6,7 +6,7 @@ Writing a real program (5 modules, ~400 lines) surfaced design questions the sma
 
 1. **The effect signatures read well.** `fn save_link(link: ShortLink) can Db, Fail` is immediately clear. You know what this function does to the world without reading the body. The `can` keyword carries its weight.
 
-2. **Pure functions are the majority.** model.lux is entirely pure. slug.lux is mostly pure (only `generate_slug` needs Rand). The response helpers in handler.lux are pure. The effect system naturally pushes logic toward purity because it's the path of least resistance.
+2. **Pure functions are the majority.** model.gaze is entirely pure. slug.gaze is mostly pure (only `generate_slug` needs Rand). The response helpers in handler.gaze are pure. The effect system naturally pushes logic toward purity because it's the path of least resistance.
 
 3. **The pipeline + field projection combo is pleasant.** `links |> map(.url.to_string()) |> sort_by(.clicks)` reads like a sentence. This is the syntax at its best.
 
@@ -21,7 +21,7 @@ Writing a real program (5 modules, ~400 lines) surfaced design questions the sma
    - A `Json` type with builder syntax: `Json.object([ ("slug", link.slug), ... ])`
    - Named structs for everything: verbose but explicit
 
-2. **`impl Encode` in function parameters.** `fn json_response(status: u16, data: impl Encode)` uses Rust's `impl Trait` syntax. We haven't defined whether Lux supports this. Options:
+2. **`impl Encode` in function parameters.** `fn json_response(status: u16, data: impl Encode)` uses Rust's `impl Trait` syntax. We haven't defined whether Gaze supports this. Options:
    - `impl Trait` in argument position (like Rust): convenient but has subtle scoping rules
    - Generic with bound: `fn json_response<T: Encode>(status: u16, data: T)`: explicit
    - Both: `impl Trait` is sugar for the generic version
@@ -35,11 +35,11 @@ Writing a real program (5 modules, ~400 lines) surfaced design questions the sma
    - Effect modules are imported like everything else: `import std.db`
    - Effect modules are accessed through a prefix: `Db.execute(...)` (capitalized)
 
-6. **Closures in `net.serve`.** In main.lux, `net.serve(config.port, |req| { ... })` passes a closure to the server. What effects can the closure have? It calls `handler.route` which is `can Db, Time, Rand, Fail`. Does the closure inherit the caller's effects? Does it need its own `can` clause? This is the effect polymorphism question applied to closures, and it's not trivial.
+6. **Closures in `net.serve`.** In main.gaze, `net.serve(config.port, |req| { ... })` passes a closure to the server. What effects can the closure have? It calls `handler.route` which is `can Db, Time, Rand, Fail`. Does the closure inherit the caller's effects? Does it need its own `can` clause? This is the effect polymorphism question applied to closures, and it's not trivial.
 
 7. **`Rand` as a separate effect from `Time`.** `generate_slug` needs `Rand`. But in practice, most random number generators are seeded from the clock or OS entropy. Is `Rand` really independent from `Time` and `Env`? Pragmatically yes (you want to track randomness separately for reproducibility). But it means `build_link` is `can Rand, Fail` even though it's "almost pure."
 
-8. **Database connection lifecycle.** `db.connect(url)` in main.lux establishes a connection. But the `db` module functions in store.lux use `db.execute(...)` without any connection parameter. How does the connection flow? Is it implicit global state? That contradicts the "no magic globals" principle. Options:
+8. **Database connection lifecycle.** `db.connect(url)` in main.gaze establishes a connection. But the `db` module functions in store.gaze use `db.execute(...)` without any connection parameter. How does the connection flow? Is it implicit global state? That contradicts the "no magic globals" principle. Options:
    - Connection is a capability that's passed explicitly: `fn save_link(db: Db, link: ShortLink)`
    - Connection is module-level state, established once, used everywhere (Go's `sql.DB` pattern)
    - Connection pool is part of the effect system: `can Db` means "has access to a database connection"

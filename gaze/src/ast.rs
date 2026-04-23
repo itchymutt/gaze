@@ -1,0 +1,74 @@
+use crate::effects::Effect;
+use crate::token::Span;
+
+/// A Lux source file: a list of top-level items.
+#[derive(Debug)]
+pub struct Module {
+    pub items: Vec<Item>,
+}
+
+#[derive(Debug)]
+pub enum Item {
+    Function(Function),
+}
+
+#[derive(Debug)]
+pub struct Function {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Option<TypeExpr>,
+    pub effects: Vec<Effect>,
+    pub body: Vec<Stmt>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct Param {
+    pub name: String,
+    pub ty: TypeExpr,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct TypeExpr {
+    pub name: String,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub enum Stmt {
+    Expr(Expr),
+    Let(LetStmt),
+}
+
+#[derive(Debug)]
+pub struct LetStmt {
+    pub name: String,
+    pub value: Expr,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub enum Expr {
+    StringLit(String, Span),
+    IntLit(i64, Span),
+    FloatLit(f64, Span),
+    Ident(String, Span),
+    Call {
+        callee: Box<Expr>,
+        args: Vec<Expr>,
+        span: Span,
+    },
+}
+
+impl Expr {
+    pub fn span(&self) -> Span {
+        match self {
+            Expr::StringLit(_, s) => *s,
+            Expr::IntLit(_, s) => *s,
+            Expr::FloatLit(_, s) => *s,
+            Expr::Ident(_, s) => *s,
+            Expr::Call { span, .. } => *span,
+        }
+    }
+}

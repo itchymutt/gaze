@@ -1,4 +1,4 @@
-# Why Lux. Why Now.
+# Why Gaze. Why Now.
 
 ## The Problem
 
@@ -14,17 +14,17 @@ The same class of problem exists in C and C++, but worse: an AI agent can genera
 
 ## The Bet
 
-Lux bets that the next generation of programming languages will be designed for a world where most code is written by machines and read by humans. This changes the design priorities:
+Gaze bets that the next generation of programming languages will be designed for a world where most code is written by machines and read by humans. This changes the design priorities:
 
 **Old priority: expressiveness.** Give the programmer maximum power. Trust them to use it wisely. (C, C++, Python, JavaScript)
 
-**New priority: transparency.** Make every behavior visible. Trust nothing. Verify everything. (Lux)
+**New priority: transparency.** Make every behavior visible. Trust nothing. Verify everything. (Gaze)
 
 There's already evidence for this bet. Mitchell Hashimoto, returning to Go in 2026, found that agents are "shockingly productive" at writing good Go — better than in any other language he'd used. The reason: `go doc`, `gopls`, one formatting style, structural simplicity. Go's constraints, which humans found limiting, turn out to be agent superpowers. One way to do things means agents don't waste tokens on style decisions. Rich introspection tools give agents context without reading source. Predictable structure means consistent output.
 
-Go's constraints weren't designed for agents. They accidentally serve them. Lux's constraints are designed for agents from the start.
+Go's constraints weren't designed for agents. They accidentally serve them. Gaze's constraints are designed for agents from the start.
 
-A function in Lux that touches the network says `can Net`. A function that writes to disk says `can Fs`. A function that can fail says `can Fail`. A function that says nothing is pure: it takes values, returns values, and touches nothing else. The compiler enforces this. An AI agent cannot introduce hidden side effects because the type system won't allow it.
+A function in Gaze that touches the network says `can Net`. A function that writes to disk says `can Fs`. A function that can fail says `can Fail`. A function that says nothing is pure: it takes values, returns values, and touches nothing else. The compiler enforces this. An AI agent cannot introduce hidden side effects because the type system won't allow it.
 
 This is not a new idea in academia. Haskell's IO monad, Koka's algebraic effects, and Austral's capability tokens all track what functions do to the world. What's new is the motivation: not theoretical purity, but practical safety in a world where the programmer is a machine.
 
@@ -32,13 +32,13 @@ This is not a new idea in academia. Haskell's IO monad, Koka's algebraic effects
 
 Mitchell Hashimoto built Ghostty, a terminal emulator. Then he revealed that Ghostty was a demo for libghostty, the terminal library underneath it. The visible product attracted users. The library attracted builders. The lasting contribution was the library.
 
-Lux follows the same pattern.
+Gaze follows the same pattern.
 
 **The language** is the visible product. It's what people write code in, what the examples demonstrate, what the website shows. It has syntax, a compiler, a standard library, a package manager. It's a real language for real programs.
 
 **The effect checker** is the library underneath. It's a formal system for tracking what code does to the world: a fixed vocabulary of effects (Net, Fs, Db, Console, Env, Time, Rand, Async, Unsafe, Fail), a type-level permission system (`can`), capability narrowing for sandboxing, and an audit tool that produces machine-readable manifests of every function's effects.
 
-The effect checker doesn't require Lux. It's a specification and a reference implementation that could be adapted to:
+The effect checker doesn't require Gaze. It's a specification and a reference implementation that could be adapted to:
 
 - **A TypeScript plugin** that checks effect annotations in JSDoc comments
 - **A Python static analyzer** that verifies `@effects(Net, Fs)` decorators
@@ -52,7 +52,7 @@ The language is the demo. The effect system is the contribution.
 
 Most programming languages are designed by compiler engineers. They start with the type theory, build the compiler, and then figure out what the syntax should look like. The result is languages that are powerful and hard to read. Rust's `fn fetch<'a, T: Deserialize<'a>>(url: &'a str) -> Result<T, Box<dyn Error>>` is correct. It is also hostile.
 
-Lux starts from the other end. What does the code look like on screen? How does it feel to read a stranger's function at 2am during an incident? What does a junior developer see in their first hour? What does an AI agent see when it parses the audit output?
+Gaze starts from the other end. What does the code look like on screen? How does it feel to read a stranger's function at 2am during an incident? What does a junior developer see in their first hour? What does an AI agent see when it parses the audit output?
 
 The `can` keyword exists because `! {Net, Db}` was ugly. `Fail` is an effect because `Result<User, AppError>` is ceremony. The `.field` shorthand exists because `|i| i.unit_price` is noise. Effects are modules because two concepts that map 1:1 should be one concept.
 
@@ -62,9 +62,9 @@ These are design decisions, not compiler decisions. They came from looking at th
 
 The most effective pattern for human-agent collaboration is already emerging: the human scaffolds, the agent fills in. Mitchell Hashimoto, building a non-trivial Ghostty feature with agents (October 2025), describes his most productive pattern: create a file with function signatures, parameter types, and TODO comments. Then ask the agent to complete it. The human defines the contract. The agent writes the implementation.
 
-Lux makes this pattern structural. The `can` clause is the scaffold. A human (or an architect agent) writes:
+Gaze makes this pattern structural. The `can` clause is the scaffold. A human (or an architect agent) writes:
 
-```lux
+```gaze
 fn save_order(db: Db, order: Order) -> OrderId can Fail {
     // TODO: validate, persist, return id
 }
@@ -92,7 +92,7 @@ This is why "the signature is the contract" matters for agent-generated code: th
 
 ## What's Next
 
-The specification needs to be complete enough that a compiler engineer could implement Lux from the documents alone. Then: a tree-walk interpreter in Rust to validate the design by running real programs. Then: the effect checker extracted as a standalone library.
+The specification needs to be complete enough that a compiler engineer could implement Gaze from the documents alone. Then: a tree-walk interpreter in Rust to validate the design by running real programs. Then: the effect checker extracted as a standalone library.
 
 The language is the long game. The effect checker is the thing that could matter next year.
 
@@ -102,10 +102,10 @@ If you build compilers and you're tired of languages that treat side effects as 
 
 If you build AI agents and you're tired of sandboxing them with Docker containers instead of type systems.
 
-If you build developer tools and you want a language where `lux audit` tells you everything a program can do in one command.
+If you build developer tools and you want a language where `gaze audit` tells you everything a program can do in one command.
 
 If you think programming languages should be beautiful and safe, not one or the other.
 
 Come build with us.
 
-github.com/itchymutt/lux
+github.com/itchymutt/gaze

@@ -1,8 +1,8 @@
 """
 Effect policy checking.
 
-A .luxpolicy file declares which effects are allowed (or denied) for a module.
-liblux checks the analyzed effects against the policy and reports violations.
+A .gazepolicy file declares which effects are allowed (or denied) for a module.
+libgaze checks the analyzed effects against the policy and reports violations.
 
 Policy format (JSON):
 {

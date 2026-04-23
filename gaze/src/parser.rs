@@ -1,0 +1,315 @@
+use crate::ast::*;
+use crate::effects::Effect;
+use crate::token::{Span, Token, TokenKind};
+
+pub struct Parser {
+    tokens: Vec<Token>,
+    pos: usize,
+}
+
+#[derive(Debug)]
+pub struct ParseError {
+    pub message: String,
+    pub offset: u32,
+}
+
+impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
+        Parser { tokens, pos: 0 }
+    }
+
+    pub fn parse_module(&mut self) -> Result<Module, ParseError> {
+        let mut items = Vec::new();
+        while !self.at_eof() {
+            // Skip optional `pub` keyword
+            if self.check(&TokenKind::Pub) {
+                self.advance();
+            }
+            items.push(self.parse_item()?);
+        }
+        Ok(Module { items })
+    }
+
+    fn parse_item(&mut self) -> Result<Item, ParseError> {
+        if self.check(&TokenKind::Fn) {
+            Ok(Item::Function(self.parse_function()?))
+        } else {
+            Err(self.error("expected `fn`"))
+        }
+    }
+
+    fn parse_function(&mut self) -> Result<Function, ParseError> {
+        let start = self.current_span();
+        self.expect(&TokenKind::Fn)?;
+
+        let name = self.expect_ident()?;
+        self.expect(&TokenKind::LParen)?;
+
+        // Parse params (for Demo 1: always empty)
+        let mut params = Vec::new();
+        while !self.check(&TokenKind::RParen) && !self.at_eof() {
+            let param = self.parse_param()?;
+            params.push(param);
+            if !self.check(&TokenKind::RParen) {
+                self.expect(&TokenKind::Comma)?;
+            }
+        }
+        self.expect(&TokenKind::RParen)?;
+
+        // Parse optional return type: -> Type
+        let return_type = if self.check(&TokenKind::Arrow) {
+            self.advance();
+            let ty_span = self.current_span();
+            let ty_name = self.expect_ident()?;
+            Some(TypeExpr {
+                name: ty_name,
+                span: ty_span,
+            })
+        } else {
+            None
+        };
+
+        // Parse optional effects: can Effect1, Effect2
+        let effects = if self.check(&TokenKind::Can) {
+            self.advance();
+            self.parse_effect_list()?
+        } else {
+            vec![]
+        };
+
+        // Parse body
+        self.expect(&TokenKind::LBrace)?;
+        let body = self.parse_body()?;
+        let end = self.current_span();
+        self.expect(&TokenKind::RBrace)?;
+
+        Ok(Function {
+            name,
+            params,
+            return_type,
+            effects,
+            body,
+            span: Span::new(start.start as usize, end.end as usize),
+        })
+    }
+
+    fn parse_param(&mut self) -> Result<Param, ParseError> {
+        let span = self.current_span();
+        let name = self.expect_ident()?;
+        self.expect(&TokenKind::Colon)?;
+        let ty_span = self.current_span();
+        let ty_name = self.expect_ident()?;
+        Ok(Param {
+            name,
+            ty: TypeExpr {
+                name: ty_name,
+                span: ty_span,
+            },
+            span,
+        })
+    }
+
+    fn parse_effect_list(&mut self) -> Result<Vec<Effect>, ParseError> {
+        let mut effects = Vec::new();
+        loop {
+            let span = self.current_span();
+            let name = self.expect_ident()?;
+            match Effect::from_str(&name) {
+                Some(e) => effects.push(e),
+                None => {
+                    return Err(ParseError {
+                        message: format!("unknown effect `{name}`"),
+                        offset: span.start,
+                    });
+                }
+            }
+            if self.check(&TokenKind::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        Ok(effects)
+    }
+
+    fn parse_body(&mut self) -> Result<Vec<Stmt>, ParseError> {
+        let mut stmts = Vec::new();
+        while !self.check(&TokenKind::RBrace) && !self.at_eof() {
+            stmts.push(self.parse_stmt()?);
+        }
+        Ok(stmts)
+    }
+
+    fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
+        if self.check(&TokenKind::Let) {
+            self.parse_let()
+        } else {
+            Ok(Stmt::Expr(self.parse_expr()?))
+        }
+    }
+
+    fn parse_let(&mut self) -> Result<Stmt, ParseError> {
+        let span = self.current_span();
+        self.expect(&TokenKind::Let)?;
+        let name = self.expect_ident()?;
+        self.expect(&TokenKind::Eq)?;
+        let value = self.parse_expr()?;
+        Ok(Stmt::Let(LetStmt { name, value, span }))
+    }
+
+    fn parse_expr(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.parse_primary()?;
+
+        // Handle call syntax: expr(args...)
+        while self.check(&TokenKind::LParen) {
+            let call_start = expr.span();
+            self.advance();
+            let mut args = Vec::new();
+            while !self.check(&TokenKind::RParen) && !self.at_eof() {
+                args.push(self.parse_expr()?);
+                if !self.check(&TokenKind::RParen) {
+                    self.expect(&TokenKind::Comma)?;
+                }
+            }
+            let end = self.current_span();
+            self.expect(&TokenKind::RParen)?;
+            expr = Expr::Call {
+                callee: Box::new(expr),
+                args,
+                span: Span::new(call_start.start as usize, end.end as usize),
+            };
+        }
+
+        Ok(expr)
+    }
+
+    fn parse_primary(&mut self) -> Result<Expr, ParseError> {
+        let span = self.current_span();
+        match &self.tokens[self.pos].kind {
+            TokenKind::StringLit(s) => {
+                let s = s.clone();
+                self.advance();
+                Ok(Expr::StringLit(s, span))
+            }
+            TokenKind::IntLit(n) => {
+                let n = *n;
+                self.advance();
+                Ok(Expr::IntLit(n, span))
+            }
+            TokenKind::FloatLit(n) => {
+                let n = *n;
+                self.advance();
+                Ok(Expr::FloatLit(n, span))
+            }
+            TokenKind::Ident(name) => {
+                let name = name.clone();
+                self.advance();
+                Ok(Expr::Ident(name, span))
+            }
+            _ => Err(self.error("expected expression")),
+        }
+    }
+
+    // --- Utilities ---
+
+    fn check(&self, kind: &TokenKind) -> bool {
+        std::mem::discriminant(&self.tokens[self.pos].kind) == std::mem::discriminant(kind)
+    }
+
+    fn advance(&mut self) -> &Token {
+        let t = &self.tokens[self.pos];
+        if self.pos < self.tokens.len() - 1 {
+            self.pos += 1;
+        }
+        t
+    }
+
+    fn expect(&mut self, kind: &TokenKind) -> Result<&Token, ParseError> {
+        if self.check(kind) {
+            Ok(self.advance())
+        } else {
+            Err(self.error(&format!("expected {kind:?}, got {:?}", self.tokens[self.pos].kind)))
+        }
+    }
+
+    fn expect_ident(&mut self) -> Result<String, ParseError> {
+        if let TokenKind::Ident(name) = &self.tokens[self.pos].kind {
+            let name = name.clone();
+            self.advance();
+            Ok(name)
+        } else {
+            Err(self.error(&format!(
+                "expected identifier, got {:?}",
+                self.tokens[self.pos].kind
+            )))
+        }
+    }
+
+    fn current_span(&self) -> Span {
+        self.tokens[self.pos].span
+    }
+
+    fn at_eof(&self) -> bool {
+        self.tokens[self.pos].kind == TokenKind::Eof
+    }
+
+    fn error(&self, msg: &str) -> ParseError {
+        ParseError {
+            message: msg.to_string(),
+            offset: self.tokens[self.pos].span.start,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lexer::Lexer;
+
+    #[test]
+    fn parse_hello_world() {
+        let source = r#"fn main() can Console {
+    print("Hello, world.")
+}"#;
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let module = Parser::new(tokens).parse_module().unwrap();
+        assert_eq!(module.items.len(), 1);
+
+        if let Item::Function(f) = &module.items[0] {
+            assert_eq!(f.name, "main");
+            assert_eq!(f.params.len(), 0);
+            assert!(f.return_type.is_none());
+            assert_eq!(f.effects, vec![Effect::Console]);
+            assert_eq!(f.body.len(), 1);
+        } else {
+            panic!("expected function");
+        }
+    }
+
+    #[test]
+    fn parse_pure_function() {
+        let source = "fn add() { 42 }";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let module = Parser::new(tokens).parse_module().unwrap();
+
+        if let Item::Function(f) = &module.items[0] {
+            assert_eq!(f.name, "add");
+            assert!(f.effects.is_empty());
+        } else {
+            panic!("expected function");
+        }
+    }
+
+    #[test]
+    fn parse_multiple_effects() {
+        let source = "fn fetch() can Net, Db, Fail { }";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let module = Parser::new(tokens).parse_module().unwrap();
+
+        if let Item::Function(f) = &module.items[0] {
+            assert_eq!(f.effects, vec![Effect::Net, Effect::Db, Effect::Fail]);
+        } else {
+            panic!("expected function");
+        }
+    }
+}

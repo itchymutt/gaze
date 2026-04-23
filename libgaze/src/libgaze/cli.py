@@ -1,10 +1,10 @@
 """
-liblux CLI.
+libgaze CLI.
 
 Usage:
-    liblux check <file.py>              Report effects in a Python file
-    liblux check <file.py> --json       Output as JSON manifest
-    liblux policy <file.py> -p .luxpolicy   Check against a policy file
+    libgaze check <file.py>              Report effects in a Python file
+    libgaze check <file.py> --json       Output as JSON manifest
+    libgaze policy <file.py> -p .gazepolicy   Check against a policy file
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from .policy import check_policy, load_policy
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="liblux",
+        prog="libgaze",
         description="See what your code does to the world before it runs.",
     )
     subparsers = parser.add_subparsers(dest="command")
@@ -43,7 +43,7 @@ def main() -> None:
     )
     policy_parser.add_argument("file", type=Path, help="Python file to analyze")
     policy_parser.add_argument(
-        "--policy", "-p", type=Path, required=True, help="Policy file (.luxpolicy)"
+        "--policy", "-p", type=Path, required=True, help="Policy file (.gazepolicy)"
     )
     policy_parser.add_argument(
         "--json", action="store_true", dest="json_output", help="Output as JSON"

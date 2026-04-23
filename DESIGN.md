@@ -1,18 +1,18 @@
-# Lux: A Language That Shows Its Work
+# Gaze: A Language That Shows Its Work
 
 ## Thesis
 
-Lux is a general-purpose programming language designed for a world where most code is written by machines and read by humans. Its core belief: **every observable behavior of a program should be visible in its type signature.**
+Gaze is a general-purpose programming language designed for a world where most code is written by machines and read by humans. Its core belief: **every observable behavior of a program should be visible in its type signature.**
 
 Memory safety is table stakes. The novel contribution is *effect safety*: the compiler tracks what a function does to the world, not just what it returns. A function that touches the network says so. A function that writes to disk says so. A function that mutates shared state says so. Silence means purity.
 
-This matters because AI agents generate plausible code at scale. In languages where side effects are invisible, a "pure" function that secretly makes HTTP calls passes code review (human and automated). In Lux, it doesn't compile.
+This matters because AI agents generate plausible code at scale. In languages where side effects are invisible, a "pure" function that secretly makes HTTP calls passes code review (human and automated). In Gaze, it doesn't compile.
 
 ## Lineage
 
-Lux draws from seven languages, taking specific ideas from each:
+Gaze draws from seven languages, taking specific ideas from each:
 
-| Language | What Lux takes | What Lux avoids |
+| Language | What Gaze takes | What Gaze avoids |
 |----------|---------------|-----------------|
 | **Rust** | Result types, pattern matching, no null, LLVM backend | Borrow checker complexity, lifetime annotations |
 | **Go** | Structural simplicity, one way to do things, gofmt | No sum types, no generics (pre-1.18), error handling verbosity |
@@ -21,8 +21,8 @@ Lux draws from seven languages, taking specific ideas from each:
 | **Hylo** | Mutable value semantics, subscripts/projections, parameter conventions | Unproven ergonomics for graph-shaped data |
 | **Julia** | Multiple dispatch expressiveness, type specialization | Dynamic typing, no effect tracking, GC |
 | **Go** | Structural simplicity, one way to do things, `gofmt`, the philosophy of constraint | No sum types, no generics (pre-1.18), error handling verbosity, too-easy allocation |
-| **Zig** | Allocation discipline, lazy error construction, pessimize-the-error-case principle, `comptime` | Manual memory management is too low-level for Lux's target audience |
-| **HCL** | The belief that a language should have an opinion about program structure | Domain-specificity (Lux is general-purpose) |
+| **Zig** | Allocation discipline, lazy error construction, pessimize-the-error-case principle, `comptime` | Manual memory management is too low-level for Gaze's target audience |
+| **HCL** | The belief that a language should have an opinion about program structure | Domain-specificity (Gaze is general-purpose) |
 
 See RESEARCH.md for the full competitive analysis.
 
@@ -42,9 +42,9 @@ See RESEARCH.md for the full competitive analysis.
 
 ### Core Concept
 
-Every function in Lux has an effect set: the collection of effects it may perform. The effect set is part of the function's type. Functions compose only when their effects are compatible with the calling context.
+Every function in Gaze has an effect set: the collection of effects it may perform. The effect set is part of the function's type. Functions compose only when their effects are compatible with the calling context.
 
-```lux
+```gaze
 // Pure function. No effects. The default.
 fn add(a: i32, b: i32) -> i32 {
     a + b
@@ -63,7 +63,7 @@ The keyword `can` reads as English: "this function *can* touch the network and d
 
 Effects are declared in signatures but **inferred at call sites**. You don't annotate every line. The compiler traces which calls contribute which effects and verifies that the signature covers them all.
 
-```lux
+```gaze
 fn save_user(user: User) -> UserId can Db, Fail {
     db.insert("users", user)?   // compiler infers this needs Db
 }
@@ -76,7 +76,7 @@ fn process(user: User) -> UserId {
 
 ### Built-in Effects
 
-Lux ships with a fixed set of effects. Not extensible by user code. This is a deliberate constraint: the effect set is a security manifest. A fixed vocabulary means every Lux program's effects are comparable, auditable, and toolable.
+Gaze ships with a fixed set of effects. Not extensible by user code. This is a deliberate constraint: the effect set is a security manifest. A fixed vocabulary means every Gaze program's effects are comparable, auditable, and toolable.
 
 | Effect | What it covers |
 |--------|---------------|
@@ -93,7 +93,7 @@ Lux ships with a fixed set of effects. Not extensible by user code. This is a de
 
 `Fail` deserves explanation. Instead of wrapping every return type in `Result<T, E>`, a function that can fail says `can Fail`. The `?` operator propagates failures. The caller decides how to handle them. This is the Koka insight: exceptions are just an effect.
 
-```lux
+```gaze
 // Instead of -> Result<User, AppError>
 fn find_user(id: UserId) -> User can Db, Fail {
     db.query("select * from users where id = ?", id)?
@@ -112,7 +112,7 @@ fn maybe_find(id: UserId) -> Option<User> can Db {
 
 Higher-order functions are generic over effects:
 
-```lux
+```gaze
 // map is pure if f is pure. map has whatever effects f has.
 fn map<T, U>(list: List<T>, f: fn(T) -> U can E) -> List<U> can E {
     // ...
@@ -126,7 +126,7 @@ let fetched = map(ids, |id| fetch_user(id))      // can Net, Db
 
 A `contain` block absorbs effects. Code inside can perform effects, but the boundary is pure from the outside.
 
-```lux
+```gaze
 // Pure from the caller's perspective.
 // The mutation is contained.
 fn fibonacci(n: u64) -> u64 {
@@ -150,7 +150,7 @@ There are two ways to use an effect: **module access** and **capability access**
 
 **Module access** is the default. Each built-in effect corresponds to a standard library module. `can Net` grants permission to call `net.get()`, `net.post()`, etc. No import needed. The `can` clause is the permission gate.
 
-```lux
+```gaze
 fn fetch(url: String) -> Bytes can Net, Fail {
     net.get(url)?    // module access: requires can Net
 }
@@ -158,7 +158,7 @@ fn fetch(url: String) -> Bytes can Net, Fail {
 
 **Capability access** is for when you need control over *which* instance. Pass the capability as a parameter. No `can` annotation needed for that effect, because the capability IS the parameter.
 
-```lux
+```gaze
 fn save(db: Db, user: User) can Fail {
     db.execute("insert into users ...", user)?   // capability access: db is a parameter
 }
@@ -166,7 +166,7 @@ fn save(db: Db, user: User) can Fail {
 
 The rule: use module access unless you need to pass a specific instance. Database connections, restricted network scopes, and test doubles are capability access. Everything else is module access.
 
-```lux
+```gaze
 fn main() can Net, Env, Console, Fail {
     let config = load_config()?
     let db = Db.connect(config.database_url)?   // create a capability value
@@ -180,7 +180,7 @@ fn main() can Net, Env, Console, Fail {
 
 Capabilities can be narrowed. A restricted capability looks identical to the callee but limits what it can reach:
 
-```lux
+```gaze
 fn run_sandboxed() can Net, Fs, Fail {
     let net = Net.restrict(["api.example.com"])
     let fs = Fs.restrict_to("/tmp/sandbox")
@@ -199,9 +199,9 @@ fn agent_task(net: Net, fs: Fs) -> AgentOutput can Fail {
 
 ### The `.` Shorthand (Field Projections in Closures)
 
-For pipelines and higher-order functions, Lux supports field projection shorthand:
+For pipelines and higher-order functions, Gaze supports field projection shorthand:
 
-```lux
+```gaze
 // These are equivalent:
 items |> map(|i| i.unit_price)
 items |> map(.unit_price)
@@ -218,7 +218,7 @@ This is syntactic sugar. `.field` in a closure position expands to `|it| it.fiel
 
 ### Functions
 
-```lux
+```gaze
 // Pure function
 fn greet(name: String) -> String {
     "Hello, {name}"
@@ -233,7 +233,7 @@ fn read_config(path: Path) -> Config can Fs, Fail {
 
 ### Pipelines
 
-```lux
+```gaze
 fn handle(req: Request) -> Response can Net, Db, Fail {
     req
         |> authenticate
@@ -246,7 +246,7 @@ fn handle(req: Request) -> Response can Net, Db, Fail {
 
 ### Pattern Matching
 
-```lux
+```gaze
 fn describe(status: Status) -> String {
     match status {
         Running(since) => "Running since {since}",
@@ -258,7 +258,7 @@ fn describe(status: Status) -> String {
 
 ### Structs and Enums
 
-```lux
+```gaze
 struct User {
     id: UserId,
     name: String,
@@ -276,7 +276,7 @@ enum Status {
 
 `Fail` is an effect. `?` propagates it. `catch` handles it.
 
-```lux
+```gaze
 fn load_user(id: UserId) -> User can Net, Db, Fail {
     let cached = cache.get(id)?
     if cached.is_some() {
@@ -292,7 +292,7 @@ fn load_user(id: UserId) -> User can Net, Db, Fail {
 
 Records are ad-hoc key-value data. Use them at serialization boundaries (JSON responses, config, log entries). Use named structs for typed APIs between modules.
 
-```lux
+```gaze
 // #{ } is the record literal.
 let response = #{ status: "ok", count: 42 }
 let headers = #{ "Content-Type": "application/json" }
@@ -307,7 +307,7 @@ Records are not structs. They have no compile-time field checking. They're a `Ma
 
 `fail` creates a failure. `?` propagates a failure. `catch` handles a failure. Three operations, one concept.
 
-```lux
+```gaze
 // fail is an expression of type Never. It works anywhere.
 let body = req.body ?? fail MissingBody
 let user = find(id) ?? fail NotFound(id)
@@ -326,9 +326,9 @@ let result = catch risky_operation() {
 
 ### Operators for Absence
 
-Lux has no null. `Option<T>` represents values that might not exist. Two operators make working with optionals concise:
+Gaze has no null. `Option<T>` represents values that might not exist. Two operators make working with optionals concise:
 
-```lux
+```gaze
 // ?? is the nil coalescing operator. Use the left side, or fall back to the right.
 let city = env.arg(1) ?? "San Francisco"
 let name = user.nickname ?? user.full_name ?? "Anonymous"
@@ -339,7 +339,7 @@ let user = find_user(id)?
 
 `??` can also take a block for computed defaults:
 
-```lux
+```gaze
 let cached = cache.get(id) ?? {
     let fresh = compute_expensive_thing()
     cache.set(id, fresh)
@@ -349,7 +349,7 @@ let cached = cache.get(id) ?? {
 
 ### String Interpolation
 
-```lux
+```gaze
 let name = "world"
 let greeting = "Hello, {name}"
 let math = "2 + 2 = {2 + 2}"
@@ -358,7 +358,7 @@ let nested = "User {user.name} has {user.items.len()} items"
 
 ### String Concatenation
 
-```lux
+```gaze
 // ++ concatenates strings. Not +. Strings are not numbers.
 let full = first_name ++ " " ++ last_name
 let multiline = "line one\n"
@@ -368,7 +368,7 @@ let multiline = "line one\n"
 
 ### Modules
 
-```lux
+```gaze
 // One file = one module. No choice.
 // Public items are explicitly marked.
 // Everything else is private.
@@ -387,13 +387,13 @@ fn generate_id() -> UserId {
 
 ## Memory Model
 
-Lux uses **mutable value semantics** (from Hylo) with **Perceus reference counting** (from Koka). No garbage collector. No borrow checker. No lifetime annotations.
+Gaze uses **mutable value semantics** (from Hylo) with **Perceus reference counting** (from Koka). No garbage collector. No borrow checker. No lifetime annotations.
 
 ### Value Semantics
 
-All types in Lux behave like values. Assignment copies. There is no aliasing. There is no shared mutable state. If you have a value, you are the only one who has it.
+All types in Gaze behave like values. Assignment copies. There is no aliasing. There is no shared mutable state. If you have a value, you are the only one who has it.
 
-```lux
+```gaze
 let a = Point { x: 1, y: 2 }
 let b = a          // b is an independent copy
 // a and b are completely independent values
@@ -403,7 +403,7 @@ let b = a          // b is an independent copy
 
 Functions declare how they use their parameters:
 
-```lux
+```gaze
 fn read_point(let p: Point) -> i32 {       // read-only access
     p.x + p.y
 }
@@ -426,9 +426,9 @@ These conventions are visible at every call site, which is exactly what a human 
 
 ### Subscripts (Projections, Not References)
 
-When you need to work with part of a larger structure in place, Lux uses subscripts. A subscript yields a temporary projection of a value, not a reference to it.
+When you need to work with part of a larger structure in place, Gaze uses subscripts. A subscript yields a temporary projection of a value, not a reference to it.
 
-```lux
+```gaze
 fn swap_coordinates(inout p: Point) {
     let temp = p.x
     p.x = p.y
@@ -446,7 +446,7 @@ Projections cannot be stored, returned, or outlive their scope. This eliminates 
 
 ### Perceus Reference Counting
 
-Under the hood, Lux uses Perceus (from Koka): precise, compiler-inserted reference counting with reuse optimization.
+Under the hood, Gaze uses Perceus (from Koka): precise, compiler-inserted reference counting with reuse optimization.
 
 - When a value has a single reference, operations on it are in-place (no copy).
 - When a value is shared (e.g., passed to two functions), the compiler inserts a copy.
@@ -458,29 +458,29 @@ The programmer never sees reference counts. The compiler manages them. There are
 
 There is no `unsafe` keyword. The equivalent is the `Unsafe` effect:
 
-```lux
+```gaze
 fn call_c_library(ptr: RawPtr) -> i32 can Unsafe {
     ffi.call("some_c_function", ptr)
 }
 ```
 
-Raw pointer operations require the `Unsafe` effect, which `lux audit` flags and CI policies can reject. FFI boundaries are the only place this appears.
+Raw pointer operations require the `Unsafe` effect, which `gaze audit` flags and CI policies can reject. FFI boundaries are the only place this appears.
 
 ## Compilation and Tooling
 
-- **`lux build`**: Compile to native code (LLVM backend, like Rust)
-- **`lux check`**: Type-check and effect-check without compiling. Target: sub-second for single-file changes. This is the number that matters for agent loops — agents operate in tight generate-check-fix cycles, and a slow check makes agents slow. (Reference: Zig 0.15 achieved sub-second incremental builds for libghostty-vt. Andrew Kelley: "the compiler is too damn slow, that's why we have bugs.")
-- **`lux audit`**: Print the effect manifest for a program (every function, its effects, its capabilities)
-- **`lux fmt`**: Format code (one canonical style, like `gofmt`, not configurable)
-- **`lux test`**: Run tests (tests are pure by default, effectful tests require explicit capability injection)
-- **`lux sandbox`**: Run a program with restricted capabilities (e.g., no network, filesystem limited to one directory)
+- **`gaze build`**: Compile to native code (LLVM backend, like Rust)
+- **`gaze check`**: Type-check and effect-check without compiling. Target: sub-second for single-file changes. This is the number that matters for agent loops — agents operate in tight generate-check-fix cycles, and a slow check makes agents slow. (Reference: Zig 0.15 achieved sub-second incremental builds for libghostty-vt. Andrew Kelley: "the compiler is too damn slow, that's why we have bugs.")
+- **`gaze audit`**: Print the effect manifest for a program (every function, its effects, its capabilities)
+- **`gaze fmt`**: Format code (one canonical style, like `gofmt`, not configurable)
+- **`gaze test`**: Run tests (tests are pure by default, effectful tests require explicit capability injection)
+- **`gaze sandbox`**: Run a program with restricted capabilities (e.g., no network, filesystem limited to one directory)
 
 ### The Audit Tool
 
-`lux audit` is the killer feature for AI-native development. It produces a complete manifest:
+`gaze audit` is the killer feature for AI-native development. It produces a complete manifest:
 
 ```
-$ lux audit src/main.lux
+$ gaze audit src/main.gaze
 
 main                    can Net, Fs, Console, Fail
   load_config           can Fs, Fail
@@ -520,7 +520,7 @@ See DECISIONS.md for the full rationale on each.
 
 5. **Generics.** Monomorphization (fast execution, slow compilation) or boxing (fast compilation, runtime cost)?
 
-6. **Failure injection for testing.** Functions that `can Fail` have error paths. Those paths need testing. Zig's Tripwire library (Ghostty, 2026) injects failures at named points to force `errdefer` cleanup code to run — zero cost outside tests. Lux should have an equivalent: the ability to force a `Fail` at any `?` propagation point in a test, verifying that cleanup and error handling work correctly. This could be a test framework feature (`test.inject_fail(find_user, .db_query)`) or a language-level construct. The effect system knows which functions can fail and where — that's information a test harness can exploit.
+6. **Failure injection for testing.** Functions that `can Fail` have error paths. Those paths need testing. Zig's Tripwire library (Ghostty, 2026) injects failures at named points to force `errdefer` cleanup code to run — zero cost outside tests. Gaze should have an equivalent: the ability to force a `Fail` at any `?` propagation point in a test, verifying that cleanup and error handling work correctly. This could be a test framework feature (`test.inject_fail(find_user, .db_query)`) or a language-level construct. The effect system knows which functions can fail and where — that's information a test harness can exploit.
 
 ## Influences
 
@@ -528,7 +528,7 @@ See the Lineage table at the top of this document and RESEARCH.md for the full a
 
 ## Non-Goals
 
-- **Backward compatibility with C/C++.** Lux is not a C replacement. It's a new language for new code. FFI exists for interop, not for migration.
-- **Maximum expressiveness.** Lux deliberately constrains what you can express. The constraint is the feature.
+- **Backward compatibility with C/C++.** Gaze is not a C replacement. It's a new language for new code. FFI exists for interop, not for migration.
+- **Maximum expressiveness.** Gaze deliberately constrains what you can express. The constraint is the feature.
 - **Academic purity.** The effect system is practical, not theoretically complete. It covers the effects that matter for real programs, not every possible effect.
-- **Gradual adoption.** Lux is not designed to be sprinkled into existing codebases. It's designed for new projects that want the full safety guarantee from day one.
+- **Gradual adoption.** Gaze is not designed to be sprinkled into existing codebases. It's designed for new projects that want the full safety guarantee from day one.
