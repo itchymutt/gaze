@@ -20,6 +20,7 @@ fn main() {
         eprintln!("commands:");
         eprintln!("  run <file>     Run a Gaze program");
         eprintln!("  check <file>   Check for effect errors without running");
+        eprintln!("  audit <file>   Print the effect manifest as JSON");
         process::exit(1);
     }
 
@@ -52,6 +53,17 @@ fn main() {
             match check(&source, path) {
                 Ok(module) => {
                     print_check_summary(&module, path);
+                }
+                Err(msg) => {
+                    eprintln!("{msg}");
+                    process::exit(1);
+                }
+            }
+        }
+        "audit" => {
+            match check(&source, path) {
+                Ok(module) => {
+                    print_audit_json(&module, path);
                 }
                 Err(msg) => {
                     eprintln!("{msg}");
@@ -128,6 +140,46 @@ fn print_check_summary(module: &ast::Module, path: &str) {
             }
         }
     }
+}
+
+/// Print the effect manifest as JSON.
+fn print_audit_json(module: &ast::Module, path: &str) {
+    // Collect all effects across all functions
+    let mut all_effects: Vec<&str> = Vec::new();
+    let mut functions = Vec::new();
+
+    for item in &module.items {
+        match item {
+            ast::Item::Function(f) => {
+                let effs: Vec<&str> = f.effects.iter().map(|e| e.as_str()).collect();
+                for e in &effs {
+                    if !all_effects.contains(e) {
+                        all_effects.push(e);
+                    }
+                }
+                functions.push(format!(
+                    "    {{\n      \"name\": \"{}\",\n      \"effects\": [{}],\n      \"pure\": {}\n    }}",
+                    f.name,
+                    effs.iter().map(|e| format!("\"{e}\"")).collect::<Vec<_>>().join(", "),
+                    effs.is_empty(),
+                ));
+            }
+            ast::Item::Struct(_) | ast::Item::Enum(_) => {}
+        }
+    }
+
+    all_effects.sort();
+
+    println!("{{");
+    println!("  \"file\": \"{path}\",");
+    println!(
+        "  \"effects\": [{}],",
+        all_effects.iter().map(|e| format!("\"{e}\"")).collect::<Vec<_>>().join(", ")
+    );
+    println!("  \"functions\": [");
+    println!("{}", functions.join(",\n"));
+    println!("  ]");
+    println!("}}");
 }
 
 // ============================================================
