@@ -491,7 +491,11 @@ impl Parser {
                 self.advance();
                 // Check for struct literal: Name { field: value, ... }
                 // Convention: type names start with uppercase
-                if self.check(&TokenKind::LBrace) && name.starts_with(char::is_uppercase) {
+                // Disambiguate from match body: peek for `ident :` after `{`
+                if self.check(&TokenKind::LBrace)
+                    && name.starts_with(char::is_uppercase)
+                    && self.is_struct_literal_ahead()
+                {
                     self.advance(); // consume {
                     let mut fields = Vec::new();
                     while !self.check(&TokenKind::RBrace) && !self.at_eof() {
@@ -577,6 +581,28 @@ impl Parser {
             message: msg.to_string(),
             offset: self.tokens[self.pos].span.start,
         }
+    }
+
+    /// Look ahead to disambiguate struct literal from match/block.
+    /// After seeing `Name {`, check if the next tokens are `ident :` (struct)
+    /// or something else (match body, empty block, etc).
+    fn is_struct_literal_ahead(&self) -> bool {
+        // Current token should be `{`. Peek at pos+1 and pos+2.
+        let next = self.pos + 1;
+        if next >= self.tokens.len() {
+            return false;
+        }
+        // Empty braces: `Name {}` — treat as struct with no fields
+        if self.tokens[next].kind == TokenKind::RBrace {
+            return true;
+        }
+        // `Name { ident : ...` — struct literal
+        let next2 = self.pos + 2;
+        if next2 >= self.tokens.len() {
+            return false;
+        }
+        matches!(&self.tokens[next].kind, TokenKind::Ident(_))
+            && self.tokens[next2].kind == TokenKind::Colon
     }
 }
 

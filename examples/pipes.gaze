@@ -1,0 +1,14 @@
+// Pipeline operator: data flows through transformations.
+
+fn double(x: Int) -> Int {
+    x * 2
+}
+
+fn add_one(x: Int) -> Int {
+    x + 1
+}
+
+fn main() can Console {
+    let result = 5 |> double |> add_one |> double
+    print(result)
+}

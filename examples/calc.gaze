@@ -1,0 +1,11 @@
+// Arithmetic, user functions, let bindings.
+
+fn add(a: Int, b: Int) -> Int {
+    a + b
+}
+
+fn main() can Console {
+    let x = add(2, 3)
+    let y = x * 10
+    print(y)
+}
