@@ -6,6 +6,8 @@ Usage:
     libgaze check <file.py> --json       Output as JSON manifest
     libgaze check <file.py> --quiet      Terse output (no source lines)
     libgaze check <file.py> --deny Unsafe,Db   Fail if these effects are found
+    libgaze scan <dir>                   Scan all Python files in a directory
+    libgaze scan <dir> --deny Unsafe     Fail if denied effects are found
     libgaze policy <file.py> -p .gazepolicy    Check against a policy file
 """
 
@@ -58,6 +60,24 @@ def main() -> None:
         "--json", action="store_true", dest="json_output", help="Output as JSON"
     )
 
+    # scan command
+    scan_parser = subparsers.add_parser(
+        "scan", help="Scan all Python files in a directory"
+    )
+    scan_parser.add_argument("path", type=Path, help="Directory to scan")
+    scan_parser.add_argument(
+        "--json", action="store_true", dest="json_output", help="Output as JSON"
+    )
+    scan_parser.add_argument(
+        "--quiet", "-q", action="store_true", help="Only show effectful files"
+    )
+    scan_parser.add_argument(
+        "--deny",
+        type=str,
+        default=None,
+        help="Comma-separated effects to deny (exits non-zero if found)",
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -66,6 +86,8 @@ def main() -> None:
 
     if args.command == "check":
         run_check(args)
+    elif args.command == "scan":
+        run_scan(args)
     elif args.command == "policy":
         run_policy(args)
 
@@ -90,6 +112,73 @@ def run_check(args: argparse.Namespace) -> None:
         if found:
             names = ", ".join(sorted(str(e) for e in found))
             print(f"\nFAIL  denied effects found: {names}")
+            sys.exit(1)
+
+
+def run_scan(args: argparse.Namespace) -> None:
+    if not args.path.exists():
+        print(f"error: {args.path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    if not args.path.is_dir():
+        print(f"error: {args.path} is not a directory", file=sys.stderr)
+        sys.exit(1)
+
+    # Collect all .py files, skip venvs and hidden dirs
+    py_files = sorted(
+        p for p in args.path.rglob("*.py")
+        if not any(part.startswith(".") or part in ("venv", ".venv", "node_modules", "__pycache__")
+                   for part in p.parts)
+    )
+
+    if not py_files:
+        print(f"no Python files found in {args.path}")
+        return
+
+    results = []
+    for f in py_files:
+        try:
+            result = analyze_file(f)
+            results.append(result)
+        except SyntaxError:
+            pass  # skip files that don't parse
+
+    if args.json_output:
+        print(json.dumps([to_json(r) for r in results], indent=2))
+        return
+
+    # Summary view
+    effectful = [r for r in results if r.all_effects]
+    pure = [r for r in results if not r.all_effects]
+
+    for r in effectful:
+        effect_str = ", ".join(sorted(str(e) for e in r.all_effects))
+        fn_count = len(r.functions)
+        pure_count = len(r.pure_functions)
+        print(f"  {r.path}  can {effect_str}  ({pure_count}/{fn_count} pure)")
+
+    if not args.quiet and pure:
+        print()
+        for r in pure:
+            print(f"  {r.path}  (pure)")
+
+    print()
+    print(f"{len(results)} files scanned. {len(effectful)} effectful, {len(pure)} pure.")
+
+    # --deny: exit non-zero if denied effects are found anywhere
+    if args.deny:
+        denied = {Effect(e.strip()) for e in args.deny.split(",")}
+        violations = []
+        for r in results:
+            found = r.all_effects & denied
+            if found:
+                names = ", ".join(sorted(str(e) for e in found))
+                violations.append(f"  {r.path}: {names}")
+        if violations:
+            print()
+            print("FAIL  denied effects found:")
+            for v in violations:
+                print(v)
             sys.exit(1)
 
 
