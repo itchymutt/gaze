@@ -24,7 +24,7 @@ Gaze draws from seven languages, taking specific ideas from each:
 | **Zig** | Allocation discipline, lazy error construction, pessimize-the-error-case principle, `comptime` | Manual memory management is too low-level for Gaze's target audience |
 | **HCL** | The belief that a language should have an opinion about program structure | Domain-specificity (Gaze is general-purpose) |
 
-See RESEARCH.md for the full competitive analysis.
+See the lineage table below for influences.
 
 ## Design Principles
 
@@ -524,7 +524,7 @@ See DECISIONS.md for the full rationale on each.
 
 ## Influences
 
-See the Lineage table at the top of this document and RESEARCH.md for the full analysis.
+See the lineage table at the top of this document.
 
 ## Non-Goals
 
