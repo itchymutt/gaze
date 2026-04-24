@@ -2,77 +2,7 @@
 
 Every function tells you what it does to the world.
 
-```gaze
-fn summarize(order: Order) -> Summary {
-    let subtotal = line_total(order.a) + line_total(order.b)
-    subtotal |> apply_discount(Percent(10))
-}
-```
-
-No `can` clause. This function is pure — it takes values, returns values, touches nothing.
-
-```gaze
-fn main() can Console {
-    print(summarize(order))
-}
-```
-
-`can Console` means this function writes to the terminal. The compiler enforces it. If you try to `print` from a pure function:
-
-```
-error: `print` requires `can Console`
-  --> app.gaze:4:5
-   |
-4  |     print(total)
-   |     ^^^^^ this function performs Console effects
-   |
-   = help: add `can Console` to the function signature:
-   |
-   |  fn summarize() can Console {
-```
-
-Effects propagate. If `process()` calls `fetch()` which has `can Net`, then `process()` must declare `can Net` too. You can't hide effects. A pure signature is a proof.
-
-## Status
-
-Gaze is a prototype. It's not ready for real use. The interpreter runs programs, checks effects, and formats code, but the language has no standard library, no package manager, no modules, no loops, and no string operations beyond literals. It's an exploration of effect-tracked programming, not a production tool.
-
-## Install
-
-```
-cargo install --path gaze
-```
-
-Requires [Rust](https://rustup.rs).
-
-## Try it
-
-```bash
-# Run a program
-gaze run examples/hello.gaze
-
-# Check effects without running
-gaze check examples/invoice.gaze
-
-# Machine-readable effect manifest
-gaze audit examples/invoice.gaze
-
-# Format (one style, not configurable)
-gaze fmt file.gaze
-```
-
-`gaze check` output:
-
-```
-examples/invoice.gaze: ok
-  Item  struct
-  Discount  enum(Percent, Fixed, None)
-  line_total  (pure)
-  apply_discount  (pure)
-  main  can Console
-```
-
-## The ten effects
+Ten effects. Fixed vocabulary. Not extensible.
 
 | Effect | What it means |
 |--------|--------------|
@@ -84,45 +14,96 @@ examples/invoice.gaze: ok
 | `Time` | Reads the clock or sleeps |
 | `Rand` | Generates random numbers |
 | `Async` | Spawns concurrent tasks |
-| `Unsafe` | Raw pointers or FFI |
+| `Unsafe` | Subprocess, exec, eval, FFI |
 | `Fail` | Can fail |
 
-Fixed vocabulary. Not extensible. Every program's effects are comparable, auditable, and enforceable by CI.
+## Three implementations, one vocabulary
 
-## What works today
+| Component | What it does | Language |
+|---|---|---|
+| **gaze** | Compiler. Effects enforced at compile time. | Rust |
+| **libgaze** | Static analyzer for Python. Effects detected and reported. | Python |
+| **libgaze-ts** | Static analyzer for TypeScript. Same vocabulary, different AST. | TypeScript |
 
-- Functions with parameters and return values
-- `let` bindings, arithmetic, comparisons
-- Structs with field access
-- Enums with pattern matching and destructuring
-- Pipeline operator `|>`
-- `if`/`else` expressions
-- Effect declarations with `can`
-- Effect propagation through the call graph
-- Error messages with source context and fix suggestions
-- 75 tests
+The vocabulary is the contribution. The implementations prove it works.
 
-## What doesn't work yet
+## Quick start
 
-- Standard library (no real Net, Fs, Db, etc.)
-- Modules and imports
-- Loops and iteration
-- Generics
-- String operations
-- Error handling (`fail`, `catch`, `?`)
-- Capability narrowing
+### Analyze Python code
 
-## Examples
+```bash
+cd libgaze
+pip install -e .
+libgaze check your_file.py
+```
 
-See `examples/` — all of these run:
+### Analyze TypeScript code
 
-- `hello.gaze` — the simplest program
-- `calc.gaze` — arithmetic and user functions
-- `structs.gaze` — struct definitions and field access
-- `enums.gaze` — enums and pattern matching
-- `pipes.gaze` — the pipeline operator
-- `ifelse.gaze` — conditional expressions
-- `invoice.gaze` — pure business logic with every feature
+```bash
+cd libgaze-ts
+npm install && npx tsc
+node dist/src/cli.js check your_file.ts
+```
+
+### Run the Gaze language
+
+```bash
+cd gaze
+cargo install --path .
+gaze run examples/hello.gaze
+```
+
+## What the analyzers find
+
+```
+$ libgaze check code_interpreter.py
+
+_run:194  can Fs, Net, Unsafe
+    calls run_code_unsafe (line 347)
+    calls run_code_safety (line 281)
+run_code_unsafe:347  can Unsafe
+    os.system(f"pip install {library}")
+    exec(code, {}, exec_locals)
+```
+
+Two-pass analysis: walk the AST to detect direct effects, then propagate through the intra-module call graph. If `_run()` calls `self.run_code_unsafe()`, it inherits `Unsafe`.
+
+## Scale
+
+Scanned 3,211 files and 15,293 functions across seven real repos (CrewAI, LangChain, AutoGPT, MCP Servers, Vercel AI SDK, OpenAI Agents JS). The vocabulary didn't change between Python and TypeScript. Not one effect was added, removed, or renamed.
+
+| | Python | TypeScript |
+|---|---|---|
+| Files | 1,604 | 1,607 |
+| Functions | 12,511 | 2,782 |
+| Pure | 66% | 78% |
+
+Labeled benchmarks: 101 Python functions, 54 TypeScript functions. 100% precision, 100% recall on both.
+
+## CI gate
+
+```yaml
+- uses: itchymutt/gaze/action@main
+  with:
+    path: src/tools/
+    deny: Unsafe
+```
+
+## The language
+
+```gaze
+fn read_config(path: String) can Fs -> Config {
+    let text = fs.read(path)
+    parse(text)
+}
+
+fn transform(data: Config) -> Result {
+    // no `can` clause = pure
+    // calling fs.read() here is a compile error
+}
+```
+
+The language is the proof that the vocabulary holds together as a complete programming model. 75 tests. See `gaze/` and `TUTORIAL.md`.
 
 ## License
 

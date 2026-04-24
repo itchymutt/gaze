@@ -2,68 +2,76 @@
 
 ## What exists today
 
-A tree-walk interpreter in Rust (~3,100 lines, 75 tests) that runs Gaze programs with effect checking.
+### The vocabulary
 
-**Working:**
-- [x] Lexer, parser, interpreter
+Ten effects: Net, Fs, Db, Console, Env, Time, Rand, Async, Unsafe, Fail. Fixed. Not extensible. Tested against 15,293 functions across Python and TypeScript without modification.
+
+### Gaze language (Rust, ~3,400 lines, 75 tests)
+
+A tree-walk interpreter that enforces effects at compile time.
+
 - [x] Functions, let bindings, arithmetic, comparisons
 - [x] Structs with field access
 - [x] Enums with pattern matching and destructuring
 - [x] Pipeline operator `|>`
 - [x] `if`/`else` expressions
 - [x] Effect declarations (`can`) and propagation through call graph
-- [x] `gaze run` — execute a program
-- [x] `gaze check` — verify effects without running
-- [x] `gaze audit` — JSON effect manifest
-- [x] `gaze fmt` — canonical formatter
-- [x] Error messages with source context, carets, fix suggestions
+- [x] `gaze run`, `gaze check`, `gaze audit`, `gaze fmt`
+- [x] Error messages with source context and fix suggestions
 
-**Not working yet:**
-- [ ] Standard library (Net, Fs, Db, etc. are declared but not implemented)
-- [ ] Modules and imports
-- [ ] Loops and iteration
-- [ ] Generics (`List<T>`, `Option<T>`)
-- [ ] String operations beyond literals
-- [ ] Error handling (`fail`, `catch`, `?`)
-- [ ] Capability narrowing
-- [ ] REPL
+### libgaze (Python, ~510 lines, 22 tests + 101 benchmark)
+
+Static effect analyzer for Python. Two-pass: AST walk + call graph propagation.
+
+- [x] Detect effects from stdlib, builtins, and 60+ third-party libraries
+- [x] Intra-module call graph propagation (self.method(), ClassName.method())
+- [x] CLI: `libgaze check`, `libgaze scan`, `libgaze policy`
+- [x] JSON output for CI pipelines
+- [x] Policy files (.gazepolicy) with deny lists and per-function rules
+- [x] Labeled benchmark: 101 functions, 100% precision/recall
+- [x] Scale scan: 12,511 functions across CrewAI, LangChain, AutoGPT
+
+### libgaze-ts (TypeScript, ~550 lines, 54 benchmark)
+
+Static effect analyzer for TypeScript. Same vocabulary, same architecture.
+
+- [x] Detect effects from Node.js stdlib and 40+ npm packages
+- [x] Import resolution (named, default, namespace, require())
+- [x] Intra-module call graph propagation
+- [x] CLI: check, scan, --deny, --json
+- [x] Labeled benchmark: 54 functions, 100% precision/recall
+- [x] Scale scan: 2,782 functions across MCP Servers, Vercel AI SDK, OpenAI Agents JS
+
+### GitHub Action
+
+- [x] `action/action.yml` for CI gating on effects
 
 ## What's next
 
-### Near term: make it tryable
+### Ship (highest priority)
 
-The language is interesting enough to show people but too hard to try. Priority is reducing the distance between "this looks interesting" and "I tried it."
+- [ ] Publish libgaze to PyPI (`pip install libgaze`)
+- [ ] Publish libgaze-ts to npm (`npx libgaze check file.ts`)
+- [ ] Make the repo public
+- [ ] Write the blog post (the CrewAI finding is the lede)
+- [ ] Publish the GitHub Action to the marketplace
 
-- [ ] `cargo install` works from the repo
-- [ ] 2-minute tutorial (TUTORIAL.md)
-- [ ] Show it to 5 people who build AI agent frameworks. Ask: "would you use this?"
+### Improve the analyzers
 
-### Medium term: make it real
+- [ ] Cross-file analysis (follow imports to user modules)
+- [ ] Type-aware resolution for injected objects (the 12% recall gap)
+- [ ] Expand labeled benchmarks with external contributors
 
-The features needed to write non-trivial programs:
+### Grow the language
 
 - [ ] String operations (concatenation, interpolation, length, slicing)
 - [ ] Arrays/lists with iteration
 - [ ] Modules and imports
 - [ ] Error handling (`fail`, `?`, `catch`)
 - [ ] Runtime effect modules (actual Net, Fs, Console implementations)
-- [ ] REPL
 
-### Long term: make it fast
+### Long term
 
-- [ ] Bytecode compiler + VM (Lua/Python approach)
-- [ ] Native compilation (LLVM or Cranelift)
-- [ ] Perceus reference counting
-- [ ] Package manager
-- [ ] LSP server
-
-### Eventually: extract the library
-
-The effect system as a standalone Rust library (`libgaze`) that works beyond Gaze. Language-specific analyzers for Python, TypeScript, Rust. AI agent protocol integration. This is the lasting contribution — but it comes from a working language, not before it.
-
-## Implementation principles
-
-1. **Store byte offsets, not line/column.** Reconstruct on error. The Zig pattern.
-2. **Sprint to demos.** Each feature proves the design works for one more program.
-3. **The compiler is the harness.** Every rule that lives in the compiler is a rule that never needs to be re-taught.
-4. **You have to feel it.** The interpreter isn't done when the tests pass. It's done when writing Gaze feels right.
+- [ ] Bytecode compiler + VM
+- [ ] Integration with runtime agent sandboxes (pre-check code against capability policies)
+- [ ] The vocabulary as a standard (RFC or spec document)

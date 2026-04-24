@@ -29,10 +29,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/itchymutt/lux"
-Repository = "https://github.com/itchymutt/lux"
-Documentation = "https://github.com/itchymutt/lux/tree/main/libgaze"
-Issues = "https://github.com/itchymutt/lux/issues"
+Homepage = "https://github.com/itchymutt/gaze"
+Repository = "https://github.com/itchymutt/gaze"
+Documentation = "https://github.com/itchymutt/gaze/tree/main/libgaze"
+Issues = "https://github.com/itchymutt/gaze/issues"
 
 [project.scripts]
 libgaze = "libgaze.cli:main"
