@@ -4,6 +4,7 @@
 mod ast;
 mod effects;
 mod error;
+mod fmt;
 mod interpreter;
 mod lexer;
 mod parser;
@@ -21,6 +22,7 @@ fn main() {
         eprintln!("  run <file>     Run a Gaze program");
         eprintln!("  check <file>   Check for effect errors without running");
         eprintln!("  audit <file>   Print the effect manifest as JSON");
+        eprintln!("  fmt <file>     Format a Gaze file (one style, not configurable)");
         process::exit(1);
     }
 
@@ -71,9 +73,30 @@ fn main() {
                 }
             }
         }
+        "fmt" => {
+            let tokens = match lexer::Lexer::new(&source).tokenize() {
+                Ok(t) => t,
+                Err(e) => {
+                    eprintln!("{}", error::format_error(&source, path, e.offset as u32, &e.message));
+                    process::exit(1);
+                }
+            };
+            let module = match parser::Parser::new(tokens).parse_module() {
+                Ok(m) => m,
+                Err(e) => {
+                    eprintln!("{}", error::format_error(&source, path, e.offset, &e.message));
+                    process::exit(1);
+                }
+            };
+            let formatted = fmt::format_module(&module);
+            if std::fs::write(path, &formatted).is_err() {
+                // If we can't write back (e.g. stdin), print to stdout
+                print!("{formatted}");
+            }
+        }
         other => {
             eprintln!("error: unknown command `{other}`");
-            eprintln!("usage: gaze <run|check> <file.gaze>");
+            eprintln!("usage: gaze <run|check|audit|fmt> <file.gaze>");
             process::exit(1);
         }
     }
