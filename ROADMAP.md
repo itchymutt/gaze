@@ -54,7 +54,7 @@ Static effect analyzer for TypeScript. Same vocabulary, same architecture, full 
 ### Ship (highest priority)
 
 - [x] Publish libgaze to PyPI (`pip install libgaze`)
-- [ ] Publish libgaze-ts to npm (`npm install libgaze-ts`)
+- [x] Publish libgaze-ts to npm (`npm install libgaze-ts`)
 - [x] Make the repo public
 - [ ] Write the blog post (the CrewAI finding is the lede)
 - [ ] Publish the GitHub Action to the marketplace

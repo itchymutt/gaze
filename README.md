@@ -23,7 +23,7 @@ Ten effects. Fixed vocabulary. Not extensible.
 |---|---|---|
 | **gaze** | Compiler. Effects enforced at compile time. | Rust |
 | **[libgaze](https://pypi.org/project/libgaze/)** | Static analyzer for Python. Effects detected and reported. | Python |
-| **libgaze-ts** | Static analyzer for TypeScript. Same vocabulary, different AST. | TypeScript |
+| **[libgaze-ts](https://www.npmjs.com/package/libgaze-ts)** | Static analyzer for TypeScript. Same vocabulary, different AST. | TypeScript |
 
 The vocabulary is the contribution. The implementations prove it works.
 
@@ -39,8 +39,8 @@ libgaze check your_file.py
 ### Analyze TypeScript code
 
 ```bash
-cd libgaze-ts && npm install && npm run build
-node dist/src/cli.js check your_file.ts
+npm install -g libgaze-ts
+libgaze-ts check your_file.ts
 ```
 
 ### Run the Gaze language (requires Rust)
