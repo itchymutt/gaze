@@ -1,0 +1,32 @@
+{
+  "name": "libgaze",
+  "version": "0.1.0",
+  "description": "See what your code does to the world before it runs. Static effect analysis for TypeScript.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "libgaze": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/bench/run.js",
+    "bench": "node dist/bench/run.js"
+  },
+  "dependencies": {
+    "ts-morph": "^25.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.8.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/itchymutt/gaze",
+    "directory": "libgaze-ts"
+  },
+  "license": "MIT"
+}
